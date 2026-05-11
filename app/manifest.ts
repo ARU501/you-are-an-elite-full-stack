@@ -4,8 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "LandlordForge",
     short_name: "LandlordForge",
-    description: "A dead-simple operations app for small landlords and solo contractors.",
-    start_url: "/dashboard",
+    description: "A dead-simple landlord operating system with a tenant portal and persistent messaging.",
+    start_url: "/",
     display: "standalone",
     background_color: "#09141d",
     theme_color: "#0f766e",

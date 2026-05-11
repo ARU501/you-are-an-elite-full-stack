@@ -21,6 +21,15 @@ export function formatLongDate(input: string) {
   }).format(new Date(input));
 }
 
+export function formatDateTime(input: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(input));
+}
+
 export function formatRelativeTime(input: string) {
   const diffHours = Math.round((new Date(input).getTime() - Date.now()) / (1000 * 60 * 60));
 
@@ -34,4 +43,8 @@ export function formatRelativeTime(input: string) {
 
 export function isDatePast(input: string) {
   return new Date(input).getTime() < Date.now();
+}
+
+export function formatNumber(value: number) {
+  return new Intl.NumberFormat("en-US").format(value);
 }

@@ -1,68 +1,57 @@
-export type AppMode = "landlord" | "contractor";
-export type AppTab =
-  | "dashboard"
-  | "records"
-  | "contacts"
-  | "billing"
-  | "tasks"
-  | "expenses"
-  | "reports";
+export type Role = "landlord" | "tenant";
 export type Tier = "free" | "pro";
-export type ContactKind = "tenant" | "client";
 export type PaymentStatus = "paid" | "due" | "overdue";
-export type TaskStatus = "open" | "in-progress" | "done";
-export type ActivityType = "payment" | "task" | "expense" | "record" | "auth" | "system";
+export type RequestStatus = "open" | "in-progress" | "done";
+export type Priority = "low" | "medium" | "high";
+export type PropertyStatus = "occupied" | "attention";
+export type ActivityType = "payment" | "request" | "expense" | "message" | "property" | "auth" | "system";
 
-export interface UserProfile {
+export interface Account {
+  id: string;
+  role: Role;
+  name: string;
+  email: string;
+  password: string;
+  tier: Tier;
+  linkedTenantId?: string;
+  linkedPropertyId?: string;
+}
+
+export interface SessionUser {
+  id: string;
+  role: Role;
   name: string;
   email: string;
   tier: Tier;
-  isAuthenticated: boolean;
+  linkedTenantId?: string;
+  linkedPropertyId?: string;
 }
 
 export interface PropertyItem {
   id: string;
   address: string;
-  tenantName: string;
-  rentAmount: number;
+  unitLabel: string;
+  monthlyRent: number;
   dueDay: number;
-  note?: string;
-}
-
-export interface JobItem {
-  id: string;
-  clientName: string;
-  description: string;
-  amount: number;
-  dueDate: string;
-  note?: string;
-}
-
-export interface PaymentHistoryItem {
-  id: string;
-  date: string;
-  amount: number;
-  status: PaymentStatus;
   note: string;
+  status: PropertyStatus;
 }
 
-export interface ContactItem {
+export interface TenantItem {
   id: string;
-  linkedRecordId?: string;
-  kind: ContactKind;
-  displayName: string;
+  accountId: string;
+  propertyId: string;
+  name: string;
   email: string;
   phone: string;
-  label: string;
+  leaseLabel: string;
   notes: string;
-  paymentHistory: PaymentHistoryItem[];
 }
 
 export interface PaymentItem {
   id: string;
-  kind: "rent" | "invoice";
-  recordId?: string;
-  contactId: string;
+  propertyId: string;
+  tenantId: string;
   label: string;
   amount: number;
   dueDate: string;
@@ -70,28 +59,36 @@ export interface PaymentItem {
   paidAt?: string;
 }
 
-export interface TaskItem {
+export interface MaintenanceRequestItem {
   id: string;
-  mode: AppMode;
+  propertyId: string;
+  tenantId: string;
   title: string;
   detail: string;
-  linkedRecordId?: string;
-  linkedName: string;
-  priority: "low" | "medium" | "high";
+  priority: Priority;
+  status: RequestStatus;
   dueDate: string;
-  notifyByPush: boolean;
-  status: TaskStatus;
+  createdAt: string;
+  source: Role;
 }
 
 export interface ExpenseItem {
   id: string;
+  propertyId: string;
   title: string;
   category: string;
-  linkedRecordId?: string;
-  linkedName: string;
   amount: number;
   date: string;
   note?: string;
+}
+
+export interface MessageItem {
+  id: string;
+  from: string;
+  to: string;
+  content: string;
+  timestamp: string;
+  read: boolean;
 }
 
 export interface ActivityItem {
@@ -103,52 +100,44 @@ export interface ActivityItem {
 }
 
 export interface PersistedAppData {
-  activeTab: AppTab;
-  mode: AppMode;
-  selectedContactId: string | null;
-  user: UserProfile;
+  currentUser: SessionUser | null;
+  accounts: Account[];
   properties: PropertyItem[];
-  jobs: JobItem[];
-  contacts: ContactItem[];
+  tenants: TenantItem[];
   payments: PaymentItem[];
-  tasks: TaskItem[];
+  requests: MaintenanceRequestItem[];
   expenses: ExpenseItem[];
+  messages: MessageItem[];
   activities: ActivityItem[];
-  lastPushAt: string | null;
+  selectedConversationTenantId: string | null;
 }
 
 export interface PropertyDraft {
   address: string;
-  tenantName: string;
-  rentAmount: number;
+  unitLabel: string;
+  monthlyRent: number;
   dueDay: number;
-  note?: string;
-}
-
-export interface JobDraft {
-  clientName: string;
-  description: string;
-  amount: number;
-  dueDate: string;
-  note?: string;
+  note: string;
+  status: PropertyStatus;
 }
 
 export interface ExpenseDraft {
+  propertyId: string;
   title: string;
   category: string;
-  linkedRecordId?: string;
-  linkedName: string;
   amount: number;
   date: string;
   note?: string;
 }
 
-export interface TaskDraft {
+export interface MaintenanceRequestDraft {
   title: string;
   detail: string;
-  linkedRecordId?: string;
-  linkedName: string;
-  priority: "low" | "medium" | "high";
+  priority: Priority;
   dueDate: string;
-  notifyByPush: boolean;
+}
+
+export interface ActionResult {
+  ok: boolean;
+  message: string;
 }

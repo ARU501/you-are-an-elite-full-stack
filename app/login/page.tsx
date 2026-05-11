@@ -1,33 +1,42 @@
-import { LoginForm } from "@/components/auth/login-form";
+import Link from "next/link";
 
-export default function LoginPage() {
+import { ThemeToggle } from "@/components/app/theme-toggle";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function LoginChooserPage() {
   return (
-    <main className="surface-grid min-h-screen px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto grid min-h-[calc(100vh-5rem)] max-w-6xl items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="space-y-6">
-          <div className="inline-flex items-center rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground">
-            Launch-ready MVP
-          </div>
-          <div className="space-y-4">
-            <h1 className="font-heading text-5xl font-semibold leading-tight">
-              Everything a one-person property or trade business needs on day one.
-            </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
-              LandlordForge keeps rent tracking, invoices, tasks, expenses, and reporting close enough to use daily.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="rounded-2xl border border-border/70 bg-background/70 p-5">
-              <p className="text-sm text-muted-foreground">Pricing</p>
-              <p className="mt-2 font-heading text-3xl font-semibold">Free / Pro $19</p>
-            </div>
-            <div className="rounded-2xl border border-border/70 bg-background/70 p-5">
-              <p className="text-sm text-muted-foreground">Free limit</p>
-              <p className="mt-2 font-heading text-3xl font-semibold">2 records</p>
-            </div>
-          </div>
-        </div>
-        <LoginForm />
+    <main className="surface-grid min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-5xl items-center justify-between pb-6">
+        <Link href="/" className="font-heading text-xl font-semibold">
+          LandlordForge
+        </Link>
+        <ThemeToggle />
+      </div>
+
+      <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-2">
+        <Card className="border-white/60 bg-white/85 shadow-glow dark:border-white/10 dark:bg-card/85">
+          <CardHeader>
+            <CardTitle>Landlord login</CardTitle>
+            <CardDescription>Portfolio, tenants, requests, messages, and reports.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full">
+              <Link href="/login/landlord">Continue as landlord</Link>
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="border-white/60 bg-white/85 shadow-glow dark:border-white/10 dark:bg-card/85">
+          <CardHeader>
+            <CardTitle>Tenant login</CardTitle>
+            <CardDescription>My home, payments, requests, and direct landlord messages.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild className="w-full" variant="outline">
+              <Link href="/login/tenant">Continue as tenant</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </main>
   );

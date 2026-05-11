@@ -1,55 +1,47 @@
-"use client";
+﻿"use client";
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { createDemoState } from "@/lib/demo-data";
+import { getCurrentTenant, getLandlordAccount, getLandlordSentMessageCount, getTenantAccount } from "@/lib/role-data";
 import {
+  Account,
+  ActionResult,
   ActivityItem,
-  AppMode,
-  AppTab,
-  ContactItem,
   ExpenseDraft,
-  JobDraft,
-  PaymentItem,
+  MaintenanceRequestDraft,
+  MaintenanceRequestItem,
   PersistedAppData,
   PropertyDraft,
-  TaskDraft,
-  TaskStatus,
-  UserProfile,
+  RequestStatus,
+  SessionUser,
 } from "@/lib/types";
 
-export const APP_STORAGE_KEY = "landlordforge-store";
-const FREE_LIMIT = 2;
-
-type ActionResult = {
-  ok: boolean;
-  message: string;
-};
+export const APP_STORAGE_KEY = "landlordforge-store-v2";
+const FREE_PROPERTY_LIMIT = 2;
+const FREE_LANDLORD_MESSAGE_LIMIT = 10;
 
 type AppStore = PersistedAppData & {
   hasHydrated: boolean;
   upgradeDialogOpen: boolean;
   setHasHydrated: (value: boolean) => void;
-  setActiveTab: (tab: AppTab) => void;
-  setMode: (mode: AppMode) => void;
-  toggleMode: () => void;
-  setSelectedContactId: (contactId: string | null) => void;
   setUpgradeDialogOpen: (value: boolean) => void;
   replacePersistedData: (data: PersistedAppData) => void;
-  login: (email: string, password: string) => ActionResult;
-  demoLogin: () => void;
+  login: (role: Account["role"], email: string, password: string) => ActionResult;
   logout: () => void;
   upgradeToPro: () => void;
+  setSelectedConversationTenantId: (tenantId: string | null) => void;
+  markConversationRead: (tenantId?: string) => void;
+  sendMessage: (content: string, tenantId?: string) => ActionResult;
+  broadcastMessage: (content: string) => ActionResult;
   addProperty: (draft: PropertyDraft) => ActionResult;
-  updateProperty: (id: string, draft: PropertyDraft) => ActionResult;
-  addJob: (draft: JobDraft) => ActionResult;
-  updateJob: (id: string, draft: JobDraft) => ActionResult;
-  markPaymentPaid: (paymentId: string) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  addTask: (draft: TaskDraft) => void;
-  addExpense: (draft: ExpenseDraft) => void;
-  simulatePush: (taskId: string) => string;
+  updateProperty: (propertyId: string, draft: PropertyDraft) => ActionResult;
+  addExpense: (draft: ExpenseDraft) => ActionResult;
+  submitMaintenanceRequest: (draft: MaintenanceRequestDraft) => ActionResult;
+  updateRequestStatus: (requestId: string, status: RequestStatus) => ActionResult;
+  markPaymentPaid: (paymentId: string) => ActionResult;
+  payRentForCurrentTenant: () => ActionResult;
 };
 
 const baseState = createDemoState();
@@ -58,11 +50,20 @@ function createId(prefix: string) {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function nextDueDate(day: number) {
-  const date = new Date();
-  date.setMonth(date.getMonth() + 1);
-  date.setDate(Math.min(Math.max(day, 1), 28));
-  return date.toISOString();
+function trimContent(value: string) {
+  return value.replace(/\s+/g, " ").trim();
+}
+
+function toSessionUser(account: Account): SessionUser {
+  return {
+    id: account.id,
+    role: account.role,
+    name: account.name,
+    email: account.email.toLowerCase(),
+    tier: account.tier,
+    linkedPropertyId: account.linkedPropertyId,
+    linkedTenantId: account.linkedTenantId,
+  };
 }
 
 function toActivity(title: string, detail: string, type: ActivityItem["type"]): ActivityItem {
@@ -75,51 +76,35 @@ function toActivity(title: string, detail: string, type: ActivityItem["type"]): 
   };
 }
 
-function pushActivity(activities: ActivityItem[], activity: ActivityItem) {
-  return [activity, ...activities].slice(0, 14);
+function prependActivity(activities: ActivityItem[], activity: ActivityItem) {
+  return [activity, ...activities].slice(0, 18);
 }
 
-function updateLinkedContact(contacts: ContactItem[], recordId: string, nextName: string, nextLabel: string) {
-  return contacts.map((contact) =>
-    contact.linkedRecordId === recordId
-      ? {
-          ...contact,
-          displayName: nextName,
-          label: nextLabel,
-        }
-      : contact,
-  );
+function normalizeCredentials(email: string) {
+  return email.trim().toLowerCase();
 }
 
-function refreshPaymentStatus(payment: PaymentItem): PaymentItem {
-  if (payment.status === "paid") {
-    return payment;
+function syncCurrentUser(accounts: Account[], currentUser: SessionUser | null) {
+  if (!currentUser) {
+    return null;
   }
 
-  return new Date(payment.dueDate).getTime() < Date.now() ? { ...payment, status: "overdue" } : payment;
-}
-
-function normalizeUser(user: UserProfile): UserProfile {
-  return {
-    ...user,
-    email: user.email.toLowerCase(),
-  };
+  const refreshed = accounts.find((account) => account.id === currentUser.id);
+  return refreshed ? toSessionUser(refreshed) : null;
 }
 
 export function selectPersistedData(state: AppStore): PersistedAppData {
   return {
-    activeTab: state.activeTab,
-    mode: state.mode,
-    selectedContactId: state.selectedContactId,
-    user: state.user,
+    currentUser: state.currentUser,
+    accounts: state.accounts,
     properties: state.properties,
-    jobs: state.jobs,
-    contacts: state.contacts,
+    tenants: state.tenants,
     payments: state.payments,
-    tasks: state.tasks,
+    requests: state.requests,
     expenses: state.expenses,
+    messages: state.messages,
     activities: state.activities,
-    lastPushAt: state.lastPushAt,
+    selectedConversationTenantId: state.selectedConversationTenantId,
   };
 }
 
@@ -130,13 +115,6 @@ export const useAppStore = create<AppStore>()(
       hasHydrated: false,
       upgradeDialogOpen: false,
       setHasHydrated: (value) => set({ hasHydrated: value }),
-      setActiveTab: (activeTab) => set({ activeTab }),
-      setMode: (mode) => set({ mode }),
-      toggleMode: () =>
-        set((state) => ({
-          mode: state.mode === "landlord" ? "contractor" : "landlord",
-        })),
-      setSelectedContactId: (selectedContactId) => set({ selectedContactId }),
       setUpgradeDialogOpen: (upgradeDialogOpen) => set({ upgradeDialogOpen }),
       replacePersistedData: (data) =>
         set((state) => ({
@@ -144,271 +122,426 @@ export const useAppStore = create<AppStore>()(
           ...data,
           hasHydrated: true,
         })),
-      login: (email, password) => {
-        const normalizedEmail = email.trim().toLowerCase();
-        if (normalizedEmail !== "demo@landlordforge.com" || password !== "demo123") {
-          return { ok: false, message: "Use demo@landlordforge.com / demo123" };
+      login: (role, email, password) => {
+        const normalizedEmail = normalizeCredentials(email);
+        const account = get().accounts.find(
+          (entry) =>
+            entry.role === role &&
+            normalizeCredentials(entry.email) === normalizedEmail &&
+            entry.password === password,
+        );
+
+        if (!account) {
+          return {
+            ok: false,
+            message:
+              role === "landlord"
+                ? "Use landlord@demo.com / demo123"
+                : "Use tenant@demo.com / demo123",
+          };
         }
 
         set((state) => ({
-          user: normalizeUser({
-            ...state.user,
-            email: normalizedEmail,
-            isAuthenticated: true,
-          }),
-          activities: pushActivity(
+          currentUser: toSessionUser(account),
+          selectedConversationTenantId:
+            role === "landlord" ? state.tenants[0]?.id ?? null : account.linkedTenantId ?? null,
+          upgradeDialogOpen: role === "landlord" && account.tier === "free",
+          activities: prependActivity(
             state.activities,
-            toActivity("Demo login successful", "The workspace was opened from the demo account.", "auth"),
+            toActivity(
+              `${account.role === "landlord" ? "Landlord" : "Tenant"} login`,
+              `${account.name} opened the ${account.role} workspace.`,
+              "auth",
+            ),
           ),
         }));
 
         return { ok: true, message: "Welcome back." };
       },
-      demoLogin: () =>
-        set((state) => ({
-          user: normalizeUser({
-            ...state.user,
-            email: "demo@landlordforge.com",
-            isAuthenticated: true,
-          }),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Demo workspace opened", "The landing page CTA unlocked the dashboard.", "auth"),
-          ),
-        })),
-      logout: () =>
-        set((state) => ({
-          user: {
-            ...state.user,
-            isAuthenticated: false,
-          },
-          activeTab: "dashboard",
-        })),
-      upgradeToPro: () =>
-        set((state) => ({
-          user: {
-            ...state.user,
-            tier: "pro",
-          },
+      logout: () => {
+        const resetState = createDemoState();
+        set({
+          ...resetState,
           upgradeDialogOpen: false,
-          activities: pushActivity(
-            state.activities,
-            toActivity("Pro unlocked", "Unlimited records, reports, and smart predictions are now available.", "system"),
-          ),
-        })),
-      addProperty: (draft) => {
+        });
+      },
+      upgradeToPro: () =>
+        set((state) => {
+          if (!state.currentUser) {
+            return state;
+          }
+
+          const nextAccounts = state.accounts.map((account) =>
+            account.id === state.currentUser?.id ? { ...account, tier: "pro" as const } : account,
+          );
+
+          return {
+            accounts: nextAccounts,
+            currentUser: syncCurrentUser(nextAccounts, state.currentUser),
+            upgradeDialogOpen: false,
+            activities: prependActivity(
+              state.activities,
+              toActivity(
+                "Pro unlocked",
+                "Unlimited landlord messaging, broadcast inbox, reports, and premium workspace controls are live.",
+                "system",
+              ),
+            ),
+          };
+        }),
+      setSelectedConversationTenantId: (selectedConversationTenantId) => set({ selectedConversationTenantId }),
+      markConversationRead: (tenantId) =>
+        set((state) => {
+          const currentUser = state.currentUser;
+          if (!currentUser) {
+            return state;
+          }
+
+          const landlordAccount = getLandlordAccount(state);
+          const selectedTenantId =
+            tenantId ??
+            (currentUser.role === "tenant" ? currentUser.linkedTenantId : state.selectedConversationTenantId);
+
+          if (!selectedTenantId || !landlordAccount) {
+            return state;
+          }
+
+          const tenantAccount = getTenantAccount(state, selectedTenantId);
+          if (!tenantAccount) {
+            return state;
+          }
+
+          const nextMessages = state.messages.map((message) => {
+            const shouldMarkRead =
+              currentUser.role === "landlord"
+                ? message.from === tenantAccount.id && message.to === landlordAccount.id && !message.read
+                : message.from === landlordAccount.id && message.to === currentUser.id && !message.read;
+
+            return shouldMarkRead ? { ...message, read: true } : message;
+          });
+
+          return {
+            messages: nextMessages,
+          };
+        }),
+      sendMessage: (content, tenantId) => {
         const state = get();
-        if (state.user.tier === "free" && state.properties.length >= FREE_LIMIT) {
-          set({ upgradeDialogOpen: true });
-          return { ok: false, message: "Free plans are capped at 2 properties." };
+        if (!state.currentUser) {
+          return { ok: false, message: "Please log in first." };
         }
 
-        const propertyId = createId("property");
-        const contactId = createId("contact");
-        const newProperty = {
-          id: propertyId,
-          ...draft,
-        };
-        const newContact: ContactItem = {
-          id: contactId,
-          linkedRecordId: propertyId,
-          kind: "tenant",
-          displayName: draft.tenantName,
-          email: "new-tenant@example.com",
-          phone: "(555) 000-0000",
-          label: `${draft.address} tenant`,
-          notes: draft.note ?? "New tenant record created from property setup.",
-          paymentHistory: [],
-        };
-        const newPayment: PaymentItem = {
-          id: createId("payment"),
-          kind: "rent",
-          recordId: propertyId,
-          contactId,
-          label: `${draft.address} rent`,
-          amount: draft.rentAmount,
-          dueDate: nextDueDate(draft.dueDay),
-          status: "due",
-        };
+        const cleaned = trimContent(content);
+        if (!cleaned) {
+          return { ok: false, message: "Write a message first." };
+        }
+
+        const landlordAccount = getLandlordAccount(state);
+        if (!landlordAccount) {
+          return { ok: false, message: "Landlord account missing." };
+        }
+
+        if (
+          state.currentUser.role === "landlord" &&
+          state.currentUser.tier === "free" &&
+          getLandlordSentMessageCount(state, state.currentUser) >= FREE_LANDLORD_MESSAGE_LIMIT
+        ) {
+          set({ upgradeDialogOpen: true });
+          return { ok: false, message: "Free includes 10 landlord-sent messages. Upgrade to keep the inbox live." };
+        }
+
+        const targetTenantId =
+          state.currentUser.role === "landlord"
+            ? tenantId ?? state.selectedConversationTenantId
+            : state.currentUser.linkedTenantId ?? null;
+
+        if (!targetTenantId) {
+          return { ok: false, message: "Select a tenant conversation first." };
+        }
+
+        const tenantAccount = getTenantAccount(state, targetTenantId);
+        if (!tenantAccount) {
+          return { ok: false, message: "Tenant account missing." };
+        }
+
+        const recipientId = state.currentUser.role === "landlord" ? tenantAccount.id : landlordAccount.id;
 
         set((current) => ({
-          properties: [newProperty, ...current.properties],
-          contacts: [newContact, ...current.contacts],
-          payments: [newPayment, ...current.payments],
-          activities: pushActivity(
+          messages: [
+            ...current.messages,
+            {
+              id: createId("message"),
+              from: current.currentUser!.id,
+              to: recipientId,
+              content: cleaned,
+              timestamp: new Date().toISOString(),
+              read: false,
+            },
+          ],
+          selectedConversationTenantId: targetTenantId,
+          activities: prependActivity(
             current.activities,
-            toActivity("Property added", `${draft.address} is now tracked inside your rent board.`, "record"),
+            toActivity(
+              "Message sent",
+              current.currentUser?.role === "landlord"
+                ? `A new message was sent to ${tenantAccount.name}.`
+                : "Your landlord received a new tenant message.",
+              "message",
+            ),
+          ),
+        }));
+
+        return { ok: true, message: "Message sent." };
+      },
+      broadcastMessage: (content) => {
+        const state = get();
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can broadcast." };
+        }
+
+        if (state.currentUser.tier !== "pro") {
+          set({ upgradeDialogOpen: true });
+          return { ok: false, message: "Broadcast is a Pro feature." };
+        }
+
+        const cleaned = trimContent(content);
+        if (!cleaned) {
+          return { ok: false, message: "Write a message first." };
+        }
+
+        set((current) => ({
+          messages: [
+            ...current.messages,
+            ...current.tenants.map((tenant) => ({
+              id: createId("message"),
+              from: current.currentUser!.id,
+              to: tenant.accountId,
+              content: cleaned,
+              timestamp: new Date().toISOString(),
+              read: false,
+            })),
+          ],
+          activities: prependActivity(
+            current.activities,
+            toActivity("Broadcast sent", "A one-to-many update was sent to every tenant inbox.", "message"),
+          ),
+        }));
+
+        return { ok: true, message: "Broadcast delivered to all tenant threads." };
+      },
+      addProperty: (draft) => {
+        const state = get();
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can add properties." };
+        }
+
+        if (state.currentUser.tier === "free" && state.properties.length >= FREE_PROPERTY_LIMIT) {
+          set({ upgradeDialogOpen: true });
+          return { ok: false, message: "Free plans cap out at 2 properties. Upgrade to add more." };
+        }
+
+        set((current) => ({
+          properties: [{ id: createId("property"), ...draft }, ...current.properties],
+          activities: prependActivity(
+            current.activities,
+            toActivity("Property added", `${draft.address} ${draft.unitLabel} is now tracked in the portfolio.`, "property"),
           ),
         }));
 
         return { ok: true, message: "Property saved." };
       },
-      updateProperty: (id, draft) => {
-        set((state) => ({
-          properties: state.properties.map((property) => (property.id === id ? { ...property, ...draft } : property)),
-          contacts: updateLinkedContact(state.contacts, id, draft.tenantName, `${draft.address} tenant`),
-          payments: state.payments.map((payment) =>
-            payment.recordId === id ? { ...payment, label: `${draft.address} rent`, amount: draft.rentAmount } : payment,
+      updateProperty: (propertyId, draft) => {
+        const state = get();
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can edit properties." };
+        }
+
+        set((current) => ({
+          properties: current.properties.map((property) =>
+            property.id === propertyId ? { ...property, ...draft } : property,
           ),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Property updated", `${draft.address} details were refreshed.`, "record"),
+          activities: prependActivity(
+            current.activities,
+            toActivity("Property updated", `${draft.address} ${draft.unitLabel} details were refreshed.`, "property"),
           ),
         }));
 
         return { ok: true, message: "Property updated." };
       },
-      addJob: (draft) => {
+      addExpense: (draft) => {
         const state = get();
-        if (state.user.tier === "free" && state.jobs.length >= FREE_LIMIT) {
-          set({ upgradeDialogOpen: true });
-          return { ok: false, message: "Free plans are capped at 2 jobs." };
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can log expenses." };
         }
 
-        const jobId = createId("job");
-        const contactId = createId("contact");
+        set((current) => ({
+          expenses: [{ id: createId("expense"), ...draft }, ...current.expenses],
+          activities: prependActivity(
+            current.activities,
+            toActivity("Expense logged", `${draft.title} was added to the monthly summary.`, "expense"),
+          ),
+        }));
+
+        return { ok: true, message: "Expense saved." };
+      },
+      submitMaintenanceRequest: (draft) => {
+        const state = get();
+        const currentTenant = getCurrentTenant(state);
+        if (!state.currentUser || state.currentUser.role !== "tenant" || !currentTenant) {
+          return { ok: false, message: "Only tenants can submit maintenance requests." };
+        }
+
+        const landlordAccount = getLandlordAccount(state);
+        if (!landlordAccount) {
+          return { ok: false, message: "Landlord account missing." };
+        }
+
+        const createdRequest: MaintenanceRequestItem = {
+          id: createId("request"),
+          propertyId: currentTenant.propertyId,
+          tenantId: currentTenant.id,
+          title: draft.title,
+          detail: draft.detail,
+          priority: draft.priority,
+          status: "open",
+          dueDate: draft.dueDate,
+          createdAt: new Date().toISOString(),
+          source: "tenant",
+        };
 
         set((current) => ({
-          jobs: [{ id: jobId, ...draft }, ...current.jobs],
-          contacts: [
+          requests: [createdRequest, ...current.requests],
+          messages: [
+            ...current.messages,
             {
-              id: contactId,
-              linkedRecordId: jobId,
-              kind: "client",
-              displayName: draft.clientName,
-              email: "client@example.com",
-              phone: "(555) 000-0000",
-              label: "Client account",
-              notes: draft.note ?? "New client record created from job setup.",
-              paymentHistory: [],
+              id: createId("message"),
+              from: current.currentUser!.id,
+              to: landlordAccount.id,
+              content: `Maintenance request: ${draft.title} - ${draft.detail}`,
+              timestamp: new Date().toISOString(),
+              read: false,
             },
-            ...current.contacts,
           ],
-          payments: [
-            {
-              id: createId("payment"),
-              kind: "invoice",
-              recordId: jobId,
-              contactId,
-              label: `${draft.clientName} invoice`,
-              amount: draft.amount,
-              dueDate: draft.dueDate,
-              status: "due",
-            },
-            ...current.payments,
-          ],
-          activities: pushActivity(
+          activities: prependActivity(
             current.activities,
-            toActivity("Job added", `${draft.clientName} was added to your active pipeline.`, "record"),
+            toActivity("Request submitted", `${draft.title} was added to the landlord request queue.`, "request"),
           ),
         }));
 
-        return { ok: true, message: "Job saved." };
+        return { ok: true, message: "Request submitted." };
       },
-      updateJob: (id, draft) => {
-        set((state) => ({
-          jobs: state.jobs.map((job) => (job.id === id ? { ...job, ...draft } : job)),
-          contacts: updateLinkedContact(state.contacts, id, draft.clientName, "Client account"),
-          payments: state.payments.map((payment) =>
-            payment.recordId === id ? { ...payment, label: `${draft.clientName} invoice`, amount: draft.amount } : payment,
-          ),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Job updated", `${draft.clientName} details were refreshed.`, "record"),
+      updateRequestStatus: (requestId, status) => {
+        const state = get();
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can update request status." };
+        }
+
+        set((current) => ({
+          requests: current.requests.map((request) => (request.id === requestId ? { ...request, status } : request)),
+          activities: prependActivity(
+            current.activities,
+            toActivity("Request updated", `A maintenance request moved to ${status.replace("-", " ")}.`, "request"),
           ),
         }));
 
-        return { ok: true, message: "Job updated." };
+        return { ok: true, message: "Request updated." };
       },
-      markPaymentPaid: (paymentId) =>
-        set((state) => ({
-          payments: state.payments.map((payment) =>
-            payment.id === paymentId
+      markPaymentPaid: (paymentId) => {
+        const state = get();
+        if (!state.currentUser || state.currentUser.role !== "landlord") {
+          return { ok: false, message: "Only landlords can record payments." };
+        }
+
+        const payment = state.payments.find((entry) => entry.id === paymentId);
+        if (!payment) {
+          return { ok: false, message: "Payment record not found." };
+        }
+
+        if (payment.status === "paid") {
+          return { ok: false, message: "That payment is already marked paid." };
+        }
+
+        const tenant = state.tenants.find((entry) => entry.id === payment.tenantId);
+        const tenantAccount = tenant ? state.accounts.find((entry) => entry.id === tenant.accountId) : undefined;
+
+        set((current) => ({
+          payments: current.payments.map((entry) =>
+            entry.id === paymentId
+              ? {
+                  ...entry,
+                  status: "paid",
+                  paidAt: new Date().toISOString(),
+                }
+              : entry,
+          ),
+          messages: tenantAccount
+            ? [
+                ...current.messages,
+                {
+                  id: createId("message"),
+                  from: current.currentUser!.id,
+                  to: tenantAccount.id,
+                  content: `Rent recorded as paid for ${payment.label}.`,
+                  timestamp: new Date().toISOString(),
+                  read: false,
+                },
+              ]
+            : current.messages,
+          activities: prependActivity(
+            current.activities,
+            toActivity(
+              "Payment recorded",
+              tenant ? `${tenant.name}'s payment for ${payment.label} was marked paid.` : `${payment.label} was marked paid.`,
+              "payment",
+            ),
+          ),
+        }));
+
+        return { ok: true, message: "Payment recorded." };
+      },
+      payRentForCurrentTenant: () => {
+        const state = get();
+        const currentTenant = getCurrentTenant(state);
+        const landlordAccount = getLandlordAccount(state);
+        if (!state.currentUser || state.currentUser.role !== "tenant" || !currentTenant || !landlordAccount) {
+          return { ok: false, message: "Only tenants can mark rent paid." };
+        }
+
+        const outstandingPayment = state.payments
+          .filter((payment) => payment.tenantId === currentTenant.id && payment.status !== "paid")
+          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+
+        if (!outstandingPayment) {
+          return { ok: false, message: "No outstanding rent to pay right now." };
+        }
+
+        set((current) => ({
+          payments: current.payments.map((payment) =>
+            payment.id === outstandingPayment.id
               ? {
                   ...payment,
                   status: "paid",
                   paidAt: new Date().toISOString(),
                 }
-              : refreshPaymentStatus(payment),
+              : payment,
           ),
-          contacts: state.contacts.map((contact) => {
-            const payment = state.payments.find((entry) => entry.id === paymentId);
-            if (!payment || contact.id !== payment.contactId) {
-              return contact;
-            }
-
-            return {
-              ...contact,
-              paymentHistory: [
-                {
-                  id: createId("history"),
-                  date: new Date().toISOString(),
-                  amount: payment.amount,
-                  status: "paid" as const,
-                  note: `${payment.label} marked paid.`,
-                },
-                ...contact.paymentHistory,
-              ].slice(0, 8),
-            };
-          }),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Payment marked paid", "Cashflow was refreshed for this month.", "payment"),
-          ),
-        })),
-      updateTaskStatus: (taskId, status) =>
-        set((state) => ({
-          tasks: state.tasks.map((task) => (task.id === taskId ? { ...task, status } : task)),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Task status changed", `A task was moved to ${status.replace("-", " ")}.`, "task"),
-          ),
-        })),
-      addTask: (draft) =>
-        set((state) => ({
-          tasks: [
+          messages: [
+            ...current.messages,
             {
-              id: createId("task"),
-              mode: state.mode,
-              status: "open",
-              ...draft,
+              id: createId("message"),
+              from: current.currentUser!.id,
+              to: landlordAccount.id,
+              content: `I just paid ${outstandingPayment.label}. Thanks.`,
+              timestamp: new Date().toISOString(),
+              read: false,
             },
-            ...state.tasks,
           ],
-          activities: pushActivity(
-            state.activities,
-            toActivity("Task created", `${draft.title} was added to the queue.`, "task"),
-          ),
-        })),
-      addExpense: (draft) =>
-        set((state) => ({
-          expenses: [
-            {
-              id: createId("expense"),
-              ...draft,
-            },
-            ...state.expenses,
-          ],
-          activities: pushActivity(
-            state.activities,
-            toActivity("Expense logged", `${draft.title} was added to your monthly summary.`, "expense"),
-          ),
-        })),
-      simulatePush: (taskId) => {
-        const task = get().tasks.find((entry) => entry.id === taskId);
-        if (!task) {
-          return "Task not found.";
-        }
-
-        set((state) => ({
-          lastPushAt: new Date().toISOString(),
-          activities: pushActivity(
-            state.activities,
-            toActivity("Push simulated", `${task.title} triggered a mobile-style notification.`, "system"),
+          activities: prependActivity(
+            current.activities,
+            toActivity("Rent paid", `${currentTenant.name} marked the current rent as paid.`, "payment"),
           ),
         }));
 
-        return `${task.title} pushed to the phone lockscreen simulation.`;
+        return { ok: true, message: "Rent marked paid." };
       },
     }),
     {
@@ -421,3 +554,5 @@ export const useAppStore = create<AppStore>()(
     },
   ),
 );
+
+

@@ -1,120 +1,135 @@
-# LandlordForge
+﻿# LandlordForge
 
-LandlordForge is a mobile-first MVP for small landlords and solo contractors who need one lightweight place to track rent, jobs, tenants or clients, maintenance, invoices, expenses, and reports.
+LandlordForge is a mobile-first Next.js 15 prototype for small landlords with a built-in tenant portal, persistent messaging center, maintenance flows, payment tracking, expenses, and Pro-only reports.
 
 ## Stack
 
 - Next.js 15 App Router + TypeScript
 - Tailwind CSS + shadcn-style local UI components
-- Zustand state with LocalStorage persistence
-- IndexedDB snapshot mirror for offline-first behavior
+- Zustand for auth, product state, and persistence
+- LocalStorage + IndexedDB snapshot mirror for offline-first behavior
 - Lucide icons
-- Recharts for the Pro reports view
+- Recharts for Pro reports
 - PWA manifest + `public/sw.js` service worker stub
 
-## Demo Credentials
+## Demo Accounts
 
-- Email: `demo@landlordforge.com`
+Landlord:
+
+- Email: `landlord@demo.com`
 - Password: `demo123`
+
+Tenant:
+
+- Email: `tenant@demo.com`
+- Password: `demo123`
+
+## Key MVP Features
+
+- Public landing page with landlord and tenant entry paths
+- Separate `/login/landlord` and `/login/tenant` demo logins
+- Role-aware landlord and tenant dashboards
+- Persistent in-app messaging center with unread badges
+- Tenant rent payment and maintenance request actions
+- Landlord properties, tenants, expenses, maintenance board, and reports
+- Free vs Pro gating with upgrade dialog and floating upsell
+- Offline-first persistence with PWA setup
 
 ## Project Root
 
-This whole folder is the app:
+This folder is the app root:
 
 ```text
 C:\Users\SeanA\Documents\Codex\2026-04-24\you-are-an-elite-full-stack
 ```
 
-That is the folder to upload to GitHub or import into Vercel.
+## Create a Fresh Next.js App Yourself
+
+If you want to recreate the shell from scratch first:
+
+```bash
+npm create next-app@latest landlordforge -- --ts --tailwind --app
+cd landlordforge
+```
+
+Then copy this project structure into that folder.
 
 ## Run Locally
 
-Standard Node setup:
+Install dependencies:
 
 ```bash
 npm install
+```
+
+Start the dev server:
+
+```bash
 npm run dev
 ```
 
-Then open:
+Open:
 
 ```text
 http://localhost:3000
 ```
 
-In this Codex desktop environment, if `node` is flaky on PATH, use:
+If your local shell has a flaky Node PATH in this Codex desktop environment, use:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\run-dev.ps1
 ```
 
-## Put It On GitHub
+## Build for Production
 
-If Git is installed on your machine, run these commands from the project root:
+```bash
+npm run build
+npm run start
+```
+
+## GitHub
+
+From the project root:
 
 ```bash
 git init
 git add .
-git commit -m "Initial LandlordForge MVP"
+git commit -m "LandlordForge role-based SaaS upgrade"
 git branch -M main
 git remote add origin https://github.com/YOUR-USERNAME/landlordforge.git
 git push -u origin main
 ```
 
-If you do not want to use Git locally, you can also:
+## Deploy to Vercel
 
-1. Create a new GitHub repo named `landlordforge`
-2. Open this folder
-3. Drag the project files into the GitHub web upload screen
-4. Commit the upload on `main`
-
-Do not upload `node_modules`, `.next`, `.logs`, `.tools`, or `.vercel`.
-
-## Deploy To Vercel
-
-The cleanest path is importing the GitHub repo into Vercel.
-
-1. Go to [Vercel](https://vercel.com/new)
-2. Click **Import Git Repository**
-3. Select your `landlordforge` repo
-4. Keep the framework as **Next.js**
-5. Keep the root directory as the repo root
+1. Push this folder to a GitHub repo named `landlordforge`
+2. Go to [https://vercel.com/new](https://vercel.com/new)
+3. Import the GitHub repo
+4. Keep the detected framework as `Next.js`
+5. Use the default project root
 6. Deploy
 
-This project does not need environment variables for the MVP.
-
-Recommended project settings:
+Recommended settings:
 
 - Node.js version: `22.x`
-- Install command: `pnpm install` or `npm install`
+- Install command: `npm install`
 - Build command: `npm run build`
-- Output setting: default Next.js
 
-## Quick Share Flow
+No environment variables are required for this MVP.
 
-Once Vercel gives you a URL, send:
+## Share the Demo
+
+Send people the deployed URL and say:
 
 ```text
-Here’s the LandlordForge demo: https://your-url.vercel.app
-Click Start Free or use demo@landlordforge.com / demo123
+Here is the LandlordForge demo: https://your-url.vercel.app
+Use landlord@demo.com / demo123 or tenant@demo.com / demo123
 ```
-
-## Included MVP Features
-
-- Public landing page with pricing teaser and demo CTA
-- Demo auth with a Free to Pro upgrade path
-- Dashboard stats, recent activity, mode switching, and theme toggle
-- Unified Properties / Jobs workflow
-- Tenants / Clients detail view with search and payment history
-- Rent / Invoicing tracker with PDF preview stub
-- Maintenance / Tasks board with push notification simulation
-- Expense logging with monthly summary
-- Pro-only reports with Recharts cashflow visualization
-- PWA manifest and service worker stub
 
 ## Scripts
 
-- `npm run dev` starts the app in development mode
-- `npm run build` creates a production build
-- `npm run start` runs the production server
-- `npm run lint` runs the Next.js lint check
+- `npm run dev` - start development
+- `npm run build` - production build
+- `npm run start` - run the production server
+- `npm run lint` - Next.js lint command
+

@@ -9,16 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { formatCurrency } from "@/lib/formatters";
 import { useAppStore } from "@/store/app-store";
 
-export function ReportsPanel() {
-  const mode = useAppStore((state) => state.mode);
-  const user = useAppStore((state) => state.user);
-  const properties = useAppStore((state) => state.properties);
-  const jobs = useAppStore((state) => state.jobs);
+export function LandlordReports() {
+  const currentUser = useAppStore((state) => state.currentUser);
   const payments = useAppStore((state) => state.payments);
   const expenses = useAppStore((state) => state.expenses);
   const setUpgradeDialogOpen = useAppStore((state) => state.setUpgradeDialogOpen);
-
-  const currentRecordIds = mode === "landlord" ? properties.map((property) => property.id) : jobs.map((job) => job.id);
 
   const chartData = Array.from({ length: 6 }).map((_, index) => {
     const date = new Date();
@@ -27,7 +22,7 @@ export function ReportsPanel() {
     const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
 
     const collected = payments
-      .filter((payment) => payment.status === "paid" && currentRecordIds.includes(payment.recordId ?? ""))
+      .filter((payment) => payment.status === "paid")
       .filter((payment) => {
         const paidAt = payment.paidAt ? new Date(payment.paidAt) : new Date(payment.dueDate);
         return `${paidAt.getFullYear()}-${paidAt.getMonth()}` === monthKey;
@@ -35,7 +30,6 @@ export function ReportsPanel() {
       .reduce((sum, payment) => sum + payment.amount, 0);
 
     const spend = expenses
-      .filter((expense) => currentRecordIds.includes(expense.linkedRecordId ?? ""))
       .filter((expense) => {
         const expenseDate = new Date(expense.date);
         return `${expenseDate.getFullYear()}-${expenseDate.getMonth()}` === monthKey;
@@ -50,7 +44,7 @@ export function ReportsPanel() {
     };
   });
 
-  if (user.tier !== "pro") {
+  if (!currentUser || currentUser.tier !== "pro") {
     return (
       <Card className="border-border/70 bg-background/75">
         <CardContent className="flex flex-col items-center justify-center gap-4 p-10 text-center">
@@ -60,7 +54,7 @@ export function ReportsPanel() {
           <div className="space-y-2">
             <h2 className="font-heading text-2xl font-semibold">Reports are a Pro unlock</h2>
             <p className="max-w-lg text-sm text-muted-foreground">
-              Upgrade to unlock unlimited records, cashflow charts, export stubs, and the smart prediction placeholder.
+              Upgrade to unlock cashflow charts, export hooks, and the premium story landlords actually pay for.
             </p>
           </div>
           <Button onClick={() => setUpgradeDialogOpen(true)}>Upgrade to Pro</Button>
@@ -80,7 +74,7 @@ export function ReportsPanel() {
             </div>
             <Button
               variant="outline"
-              onClick={() => toast.message("CSV export is stubbed for the MVP, ready for the backend handoff.")}
+              onClick={() => toast.message("CSV export is stubbed for the MVP and ready for the backend pass.")}
             >
               <Download className="h-4 w-4" />
               Export CSV
@@ -117,7 +111,7 @@ export function ReportsPanel() {
         <Card className="border-border/70 bg-background/75">
           <CardHeader>
             <CardTitle>Net trend</CardTitle>
-            <CardDescription>Momentum worth charging for.</CardDescription>
+            <CardDescription>Useful enough to justify the upgrade.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {chartData.slice(-3).map((entry) => (
@@ -131,18 +125,16 @@ export function ReportsPanel() {
 
         <Card className="border-border/70 bg-background/75">
           <CardHeader>
-            <CardTitle>Smart prediction placeholder</CardTitle>
-            <CardDescription>The future premium feature has a home already.</CardDescription>
+            <CardTitle>Prediction placeholder</CardTitle>
+            <CardDescription>Room for the future premium forecast without pretending it is already real AI.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-2xl border border-border/70 bg-primary/10 p-4">
-              <p className="text-sm text-muted-foreground">Next month projection</p>
-              <p className="mt-2 text-lg font-semibold">
-                {mode === "landlord" ? "Cashflow should lift 12% if Maple Street pays by the 5th." : "The active job book should close at 38% gross margin."}
-              </p>
+              <p className="text-sm text-muted-foreground">Next month</p>
+              <p className="mt-2 text-lg font-semibold">Cashflow should lift if Maple Street clears before the 5th and Cedar stays current.</p>
             </div>
             <div className="rounded-2xl border border-border/70 bg-background/70 p-4 text-sm text-muted-foreground">
-              Keep the placeholder visible now so the upgrade story lands cleanly once the real model arrives.
+              This placeholder makes the monetization story visible now and easy to evolve later.
             </div>
           </CardContent>
         </Card>

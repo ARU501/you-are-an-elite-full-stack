@@ -18,7 +18,7 @@ const headingFont = Space_Grotesk({
 export const metadata: Metadata = {
   applicationName: "LandlordForge",
   title: "LandlordForge",
-  description: "The lean operating system for small landlords and solo tradespeople.",
+  description: "The mobile-first landlord workspace with a built-in tenant portal and message center.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
