@@ -41,3 +41,61 @@ export default function LoginChooserPage() {
     </main>
   );
 }
+'use client';
+
+import { useState } from 'react';
+import { TwoFactorVerify } from '@/components/auth/two-factor-verify';
+
+export default function LoginPage() {
+  const [showTwoFactor, setShowTwoFactor] = useState(false);
+  const [tempUserId, setTempUserId] = useState<string | null>(null);
+
+  const handleLogin = async (email: string, password: string) => {
+    try {
+      // Verify credentials with your backend
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const user = await response.json();
+
+      // Check if 2FA is enabled
+      if (user.twoFactorEnabled) {
+        setTempUserId(user.id);
+        setShowTwoFactor(true); // Show 2FA component
+        return;
+      }
+
+      // Complete login if no 2FA
+      completeLogin(user);
+    } catch (error) {
+      console.error('Login error:', error);
+    }
+  };
+
+  const handleTwoFactorVerified = () => {
+    // Complete login after 2FA verification
+    completeLogin(tempUserId);
+    setShowTwoFactor(false);
+  };
+
+  // Show 2FA component if needed
+  if (showTwoFactor) {
+    return (
+      <TwoFactorVerify
+        onVerified={handleTwoFactorVerified}
+        onCancel={() => setShowTwoFactor(false)}
+      />
+    );
+  }
+
+  // Your existing login form
+  return (
+    <div>
+      <h1>Login</h1>
+      {/* Your login form here */}
+    </div>
+  );
+}
