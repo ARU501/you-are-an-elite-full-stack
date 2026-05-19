@@ -116,3 +116,69 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+import { NextRequest, NextResponse } from 'next/server';
+import { verifyTwoFactorToken, verifyBackupCode } from '@/lib/2fa';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { token, code, method = 'totp' } = await request.json();
+    const userId = request.headers.get('x-user-id');
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    // Get user from database
+    // const user = await db.user.findUnique({ where: { id: userId } });
+    // if (!user?.twoFactorEnabled) {
+    //   return NextResponse.json({ error: 'Invalid' }, { status: 400 });
+    // }
+
+    if (method === 'totp' && token) {
+      // Verify TOTP token
+      // const secret = decryptSecret(user.twoFactorSecret);
+      // const isValid = verifyTwoFactorToken(secret, token);
+      // if (!isValid) {
+      //   return NextResponse.json(
+      //     { error: 'Invalid code' },
+      //     { status: 401 }
+      //   );
+      // }
+      return NextResponse.json({ valid: true }, { status: 200 });
+    }
+
+    if (method === 'backup' && code) {
+      // Verify backup code
+      // const backupCodes = decryptBackupCodes(user.backupCodes);
+      // const result = verifyBackupCode(backupCodes, code, new Set(user.usedBackupCodes));
+      // if (!result.valid) {
+      //   return NextResponse.json(
+      //     { error: 'Invalid backup code' },
+      //     { status: 401 }
+      //   );
+      // }
+      // Mark code as used in database
+      // await db.user.update({
+      //   where: { id: userId },
+      //   data: {
+      //     usedBackupCodes: [...user.usedBackupCodes, code],
+      //   },
+      // });
+      return NextResponse.json({ valid: true }, { status: 200 });
+    }
+
+    return NextResponse.json(
+      { error: 'Invalid method' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Verification error:', error);
+    return NextResponse.json(
+      { error: 'Verification failed' },
+      { status: 500 }
+    );
+  }
+}
