@@ -6,7 +6,7 @@ export default function PaymentsPage() {
     <ProtectedPage
       roles={["tenant"]}
       title="Payments"
-      description="Track rent status and use the demo pay action to simulate a real tenant payment flow."
+      description="Use the Stripe-ready payment portal, manage autopay preferences, and keep the landlord loop updated."
     >
       <TenantPayments />
     </ProtectedPage>

@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { formatCurrency, formatLongDate } from "@/lib/formatters";
+import { centsToDollars, getCollectedAmountCents, getOutstandingAmountCents, getPaymentStatusVariant } from "@/lib/payment-processing";
 import { getTenantPayments, getTenantRequests, getUnreadMessageCount } from "@/lib/role-data";
 import { useAppStore } from "@/store/app-store";
 
@@ -59,7 +60,7 @@ export function LandlordTenants() {
               const tenantProperty = data.properties.find((entry) => entry.id === tenant.propertyId);
               const unpaidBalance = data.payments
                 .filter((payment) => payment.tenantId === tenant.id && payment.status !== "paid")
-                .reduce((sum, payment) => sum + payment.amount, 0);
+                .reduce((sum, payment) => sum + centsToDollars(getOutstandingAmountCents(payment)), 0);
 
               return (
                 <button
@@ -138,10 +139,16 @@ export function LandlordTenants() {
                     <div key={payment.id} className="rounded-2xl border border-border/70 bg-background/70 p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div>
-                          <p className="font-medium">{formatCurrency(payment.amount)}</p>
+                          <p className="font-medium">
+                            {formatCurrency(
+                              centsToDollars(
+                                payment.status === "paid" ? getCollectedAmountCents(payment) : getOutstandingAmountCents(payment),
+                              ),
+                            )}
+                          </p>
                           <p className="text-sm text-muted-foreground">{formatLongDate(payment.dueDate)}</p>
                         </div>
-                        <Badge variant={payment.status === "paid" ? "success" : payment.status === "overdue" ? "warning" : "secondary"}>
+                        <Badge variant={getPaymentStatusVariant(payment.status)}>
                           {payment.status}
                         </Badge>
                       </div>

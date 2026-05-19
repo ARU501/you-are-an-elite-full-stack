@@ -21,7 +21,6 @@ const selectClassName =
 
 export function TenantHome() {
   const currentUser = useAppStore((state) => state.currentUser);
-  const payRentForCurrentTenant = useAppStore((state) => state.payRentForCurrentTenant);
   const submitMaintenanceRequest = useAppStore((state) => state.submitMaintenanceRequest);
   const data = useAppStore((state) => state);
   const [requestDraft, setRequestDraft] = useState<MaintenanceRequestDraft>({
@@ -85,15 +84,11 @@ export function TenantHome() {
               </div>
 
               <div className="mt-5 flex flex-col gap-3 sm:flex-row">
-                <Button
-                  className="flex-1"
-                  onClick={() => {
-                    const result = payRentForCurrentTenant();
-                    result.ok ? toast.success(result.message) : toast.error(result.message);
-                  }}
-                >
-                  <ReceiptText className="h-4 w-4" />
-                  Pay rent
+                <Button asChild className="flex-1">
+                  <Link href="/payments">
+                    <ReceiptText className="h-4 w-4" />
+                    Open payment portal
+                  </Link>
                 </Button>
                 <Button asChild variant="outline" className="flex-1">
                   <Link href="/requests">

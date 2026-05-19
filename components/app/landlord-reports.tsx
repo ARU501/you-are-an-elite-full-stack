@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/formatters";
+import { centsToDollars, getCollectedAmountCents } from "@/lib/payment-processing";
 import { useAppStore } from "@/store/app-store";
 
 export function LandlordReports() {
@@ -27,7 +28,7 @@ export function LandlordReports() {
         const paidAt = payment.paidAt ? new Date(payment.paidAt) : new Date(payment.dueDate);
         return `${paidAt.getFullYear()}-${paidAt.getMonth()}` === monthKey;
       })
-      .reduce((sum, payment) => sum + payment.amount, 0);
+      .reduce((sum, payment) => sum + centsToDollars(getCollectedAmountCents(payment)), 0);
 
     const spend = expenses
       .filter((expense) => {

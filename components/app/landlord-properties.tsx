@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency, formatLongDate } from "@/lib/formatters";
+import { centsToDollars, getOutstandingAmountCents } from "@/lib/payment-processing";
 import { getPropertyTenants } from "@/lib/role-data";
 import { ExpenseDraft, PropertyDraft, PropertyStatus } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
@@ -143,7 +144,7 @@ export function LandlordProperties() {
             const propertyTenants = getPropertyTenants({ tenants }, property.id);
             const outstanding = payments
               .filter((payment) => payment.propertyId === property.id && payment.status !== "paid")
-              .reduce((sum, payment) => sum + payment.amount, 0);
+              .reduce((sum, payment) => sum + centsToDollars(getOutstandingAmountCents(payment)), 0);
             const propertyRequests = requests.filter((request) => request.propertyId === property.id && request.status !== "done");
             const recentExpense = expenses
               .filter((expense) => expense.propertyId === property.id)

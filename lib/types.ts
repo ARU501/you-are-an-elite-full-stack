@@ -1,6 +1,7 @@
 export type Role = "landlord" | "tenant";
 export type Tier = "free" | "pro";
-export type PaymentStatus = "paid" | "due" | "overdue";
+export type PaymentStatus = "due" | "overdue" | "pending" | "paid" | "failed";
+export type PaymentMethodType = "ach" | "card";
 export type RequestStatus = "open" | "in-progress" | "done";
 export type Priority = "low" | "medium" | "high";
 export type PropertyStatus = "occupied" | "attention";
@@ -54,9 +55,37 @@ export interface PaymentItem {
   tenantId: string;
   label: string;
   amount: number;
+  baseAmountCents?: number;
+  lateFeeCents?: number;
+  paidAmountCents?: number;
   dueDate: string;
   status: PaymentStatus;
+  paymentMethod?: PaymentMethodType;
+  stripePaymentIntentId?: string;
+  receiptNumber?: string;
+  failureReason?: string;
   paidAt?: string;
+}
+
+export interface TenantPaymentProfile {
+  id: string;
+  tenantId: string;
+  stripeCustomerId: string;
+  autopayEnabled: boolean;
+  autopayMethod?: PaymentMethodType;
+  savedPaymentLabel?: string;
+  notificationChannels: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentEventItem {
+  id: string;
+  rentPaymentId?: string;
+  stripeEventId?: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
 }
 
 export interface MaintenanceRequestItem {
@@ -105,6 +134,8 @@ export interface PersistedAppData {
   properties: PropertyItem[];
   tenants: TenantItem[];
   payments: PaymentItem[];
+  paymentProfiles: TenantPaymentProfile[];
+  paymentEvents: PaymentEventItem[];
   requests: MaintenanceRequestItem[];
   expenses: ExpenseItem[];
   messages: MessageItem[];
@@ -135,6 +166,45 @@ export interface MaintenanceRequestDraft {
   detail: string;
   priority: Priority;
   dueDate: string;
+}
+
+export interface PaymentProfileDraft {
+  autopayEnabled: boolean;
+  autopayMethod?: PaymentMethodType;
+  savedPaymentLabel?: string;
+  notificationChannels: string[];
+}
+
+export interface TenantPaymentSettlement {
+  paymentId?: string;
+  paymentMethod?: PaymentMethodType;
+  paidAmountCents?: number;
+  paymentStatus?: PaymentStatus;
+  stripePaymentIntentId?: string;
+  receiptNumber?: string;
+  failureReason?: string;
+}
+
+export interface PaymentIntentRequestBody {
+  paymentId: string;
+  tenantId: string;
+  amountCents: number;
+  method: PaymentMethodType;
+  autopay: boolean;
+}
+
+export interface PaymentIntentResponse {
+  ok: boolean;
+  mode: "demo" | "stripe";
+  paymentIntentId: string;
+  clientSecret?: string;
+  status: "pending" | "paid" | "failed";
+  amountCents: number;
+  method: PaymentMethodType;
+  autopay: boolean;
+  receiptNumber?: string;
+  message: string;
+  error?: string;
 }
 
 export interface ActionResult {

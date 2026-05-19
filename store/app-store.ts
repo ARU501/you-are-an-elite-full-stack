@@ -1,9 +1,16 @@
-﻿"use client";
+"use client";
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { createDemoState } from "@/lib/demo-data";
+import {
+  createReceiptNumber,
+  getCollectedAmountCents,
+  getSavedPaymentLabel,
+  getTotalDueCents,
+  resolveBaseAmountCents,
+} from "@/lib/payment-processing";
 import { getCurrentTenant, getLandlordAccount, getLandlordSentMessageCount, getTenantAccount } from "@/lib/role-data";
 import {
   Account,
@@ -12,15 +19,24 @@ import {
   ExpenseDraft,
   MaintenanceRequestDraft,
   MaintenanceRequestItem,
+  PaymentEventItem,
+  PaymentProfileDraft,
   PersistedAppData,
   PropertyDraft,
   RequestStatus,
   SessionUser,
+  TenantPaymentSettlement,
 } from "@/lib/types";
 
 export const APP_STORAGE_KEY = "landlordforge-store-v2";
 const FREE_PROPERTY_LIMIT = 2;
 const FREE_LANDLORD_MESSAGE_LIMIT = 10;
+const MAX_PAYMENT_EVENTS = 36;
+
+type PaymentEventOptions = {
+  paymentId?: string;
+  stripeEventId?: string;
+};
 
 type AppStore = PersistedAppData & {
   hasHydrated: boolean;
@@ -41,7 +57,9 @@ type AppStore = PersistedAppData & {
   submitMaintenanceRequest: (draft: MaintenanceRequestDraft) => ActionResult;
   updateRequestStatus: (requestId: string, status: RequestStatus) => ActionResult;
   markPaymentPaid: (paymentId: string) => ActionResult;
-  payRentForCurrentTenant: () => ActionResult;
+  updateCurrentTenantPaymentProfile: (draft: PaymentProfileDraft) => ActionResult;
+  recordPaymentEvent: (eventType: string, payload: Record<string, unknown>, options?: PaymentEventOptions) => void;
+  payRentForCurrentTenant: (settlement?: TenantPaymentSettlement) => ActionResult;
 };
 
 const baseState = createDemoState();
@@ -80,6 +98,10 @@ function prependActivity(activities: ActivityItem[], activity: ActivityItem) {
   return [activity, ...activities].slice(0, 18);
 }
 
+function prependPaymentEvent(events: PaymentEventItem[], event: PaymentEventItem) {
+  return [event, ...events].slice(0, MAX_PAYMENT_EVENTS);
+}
+
 function normalizeCredentials(email: string) {
   return email.trim().toLowerCase();
 }
@@ -93,6 +115,32 @@ function syncCurrentUser(accounts: Account[], currentUser: SessionUser | null) {
   return refreshed ? toSessionUser(refreshed) : null;
 }
 
+function mergePersistedData(
+  persisted: Partial<PersistedAppData> | undefined,
+  current: AppStore,
+): AppStore {
+  const data = persisted ?? {};
+
+  return {
+    ...current,
+    ...data,
+    currentUser: data.currentUser ?? current.currentUser,
+    accounts: data.accounts ?? current.accounts,
+    properties: data.properties ?? current.properties,
+    tenants: data.tenants ?? current.tenants,
+    payments: data.payments ?? current.payments,
+    paymentProfiles: data.paymentProfiles ?? current.paymentProfiles,
+    paymentEvents: data.paymentEvents ?? current.paymentEvents,
+    requests: data.requests ?? current.requests,
+    expenses: data.expenses ?? current.expenses,
+    messages: data.messages ?? current.messages,
+    activities: data.activities ?? current.activities,
+    selectedConversationTenantId: data.selectedConversationTenantId ?? current.selectedConversationTenantId,
+    hasHydrated: true,
+    upgradeDialogOpen: false,
+  };
+}
+
 export function selectPersistedData(state: AppStore): PersistedAppData {
   return {
     currentUser: state.currentUser,
@@ -100,6 +148,8 @@ export function selectPersistedData(state: AppStore): PersistedAppData {
     properties: state.properties,
     tenants: state.tenants,
     payments: state.payments,
+    paymentProfiles: state.paymentProfiles,
+    paymentEvents: state.paymentEvents,
     requests: state.requests,
     expenses: state.expenses,
     messages: state.messages,
@@ -119,8 +169,7 @@ export const useAppStore = create<AppStore>()(
       replacePersistedData: (data) =>
         set((state) => ({
           ...state,
-          ...data,
-          hasHydrated: true,
+          ...mergePersistedData(data, state),
         })),
       login: (role, email, password) => {
         const normalizedEmail = normalizeCredentials(email);
@@ -162,6 +211,7 @@ export const useAppStore = create<AppStore>()(
         const resetState = createDemoState();
         set({
           ...resetState,
+          hasHydrated: true,
           upgradeDialogOpen: false,
         });
       },
@@ -462,6 +512,8 @@ export const useAppStore = create<AppStore>()(
 
         const tenant = state.tenants.find((entry) => entry.id === payment.tenantId);
         const tenantAccount = tenant ? state.accounts.find((entry) => entry.id === tenant.accountId) : undefined;
+        const receiptNumber = payment.receiptNumber ?? createReceiptNumber();
+        const paidAmountCents = getTotalDueCents(payment);
 
         set((current) => ({
           payments: current.payments.map((entry) =>
@@ -469,7 +521,12 @@ export const useAppStore = create<AppStore>()(
               ? {
                   ...entry,
                   status: "paid",
+                  baseAmountCents: resolveBaseAmountCents(entry),
+                  lateFeeCents: entry.lateFeeCents ?? getTotalDueCents(entry) - resolveBaseAmountCents(entry),
+                  paidAmountCents,
+                  receiptNumber,
                   paidAt: new Date().toISOString(),
+                  failureReason: undefined,
                 }
               : entry,
           ),
@@ -480,7 +537,7 @@ export const useAppStore = create<AppStore>()(
                   id: createId("message"),
                   from: current.currentUser!.id,
                   to: tenantAccount.id,
-                  content: `Rent recorded as paid for ${payment.label}.`,
+                  content: `Rent recorded as paid for ${payment.label}. Receipt ${receiptNumber}.`,
                   timestamp: new Date().toISOString(),
                   read: false,
                 },
@@ -494,11 +551,81 @@ export const useAppStore = create<AppStore>()(
               "payment",
             ),
           ),
+          paymentEvents: prependPaymentEvent(current.paymentEvents, {
+            id: createId("payment-event"),
+            rentPaymentId: payment.id,
+            eventType: "demo.payment.recorded",
+            payload: {
+              paymentId: payment.id,
+              receiptNumber,
+              paidAmountCents,
+            },
+            createdAt: new Date().toISOString(),
+          }),
         }));
 
         return { ok: true, message: "Payment recorded." };
       },
-      payRentForCurrentTenant: () => {
+      updateCurrentTenantPaymentProfile: (draft) => {
+        const state = get();
+        const currentTenant = getCurrentTenant(state);
+        if (!state.currentUser || state.currentUser.role !== "tenant" || !currentTenant) {
+          return { ok: false, message: "Only tenants can update payment preferences." };
+        }
+
+        const existingProfile = state.paymentProfiles.find((profile) => profile.tenantId === currentTenant.id);
+        const savedPaymentLabel =
+          draft.savedPaymentLabel ??
+          (draft.autopayMethod ? getSavedPaymentLabel(draft.autopayMethod) : existingProfile?.savedPaymentLabel);
+
+        set((current) => ({
+          paymentProfiles: existingProfile
+            ? current.paymentProfiles.map((profile) =>
+                profile.id === existingProfile.id
+                  ? {
+                      ...profile,
+                      ...draft,
+                      savedPaymentLabel,
+                      updatedAt: new Date().toISOString(),
+                    }
+                  : profile,
+              )
+            : [
+                {
+                  id: createId("payment-profile"),
+                  tenantId: currentTenant.id,
+                  stripeCustomerId: `cus_demo_${currentTenant.id}`,
+                  createdAt: new Date().toISOString(),
+                  updatedAt: new Date().toISOString(),
+                  savedPaymentLabel,
+                  ...draft,
+                },
+                ...current.paymentProfiles,
+              ],
+          activities: prependActivity(
+            current.activities,
+            toActivity(
+              "Payment settings updated",
+              `${currentTenant.name} refreshed autopay and notification preferences.`,
+              "payment",
+            ),
+          ),
+        }));
+
+        return { ok: true, message: "Payment preferences saved." };
+      },
+      recordPaymentEvent: (eventType, payload, options) =>
+        set((state) => ({
+          paymentEvents: prependPaymentEvent(state.paymentEvents, {
+            id: createId("payment-event"),
+            rentPaymentId: options?.paymentId,
+            stripeEventId: options?.stripeEventId,
+            eventType,
+            payload,
+            createdAt: new Date().toISOString(),
+          }),
+        })),
+      payRentForCurrentTenant: (settlement) => {
         const state = get();
         const currentTenant = getCurrentTenant(state);
         const landlordAccount = getLandlordAccount(state);
@@ -506,21 +633,60 @@ export const useAppStore = create<AppStore>()(
           return { ok: false, message: "Only tenants can mark rent paid." };
         }
 
-        const outstandingPayment = state.payments
-          .filter((payment) => payment.tenantId === currentTenant.id && payment.status !== "paid")
-          .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
+        const outstandingPayment =
+          (settlement?.paymentId ? state.payments.find((payment) => payment.id === settlement.paymentId) : undefined) ??
+          state.payments
+            .filter((payment) => payment.tenantId === currentTenant.id && payment.status !== "paid")
+            .sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime())[0];
 
         if (!outstandingPayment) {
           return { ok: false, message: "No outstanding rent to pay right now." };
         }
+
+        if (outstandingPayment.status === "pending" && !settlement?.paymentStatus) {
+          return { ok: false, message: "That payment is already processing." };
+        }
+
+        const paymentStatus = settlement?.paymentStatus ?? "paid";
+        const paidAmountCents =
+          settlement?.paidAmountCents ??
+          (paymentStatus === "paid" ? getTotalDueCents(outstandingPayment) : getCollectedAmountCents(outstandingPayment));
+        const receiptNumber =
+          paymentStatus === "paid" ? settlement?.receiptNumber ?? createReceiptNumber() : settlement?.receiptNumber;
+        const methodLabel = settlement?.paymentMethod === "ach" ? "ACH" : settlement?.paymentMethod === "card" ? "card" : "payment";
+        const messageContent =
+          paymentStatus === "paid"
+            ? `I just paid ${outstandingPayment.label}. Receipt ${receiptNumber}.`
+            : paymentStatus === "pending"
+              ? `Payment started for ${outstandingPayment.label} via ${methodLabel}.`
+              : `Payment attempt for ${outstandingPayment.label} needs attention${settlement?.failureReason ? `: ${settlement.failureReason}` : "."}`;
+        const activityDetail =
+          paymentStatus === "paid"
+            ? `${currentTenant.name} completed ${outstandingPayment.label}.`
+            : paymentStatus === "pending"
+              ? `${currentTenant.name} started a payment flow for ${outstandingPayment.label}.`
+              : `${currentTenant.name} hit a payment issue for ${outstandingPayment.label}.`;
+        const eventType =
+          paymentStatus === "paid"
+            ? "payment_intent.succeeded"
+            : paymentStatus === "pending"
+              ? "payment_intent.processing"
+              : "payment_intent.payment_failed";
 
         set((current) => ({
           payments: current.payments.map((payment) =>
             payment.id === outstandingPayment.id
               ? {
                   ...payment,
-                  status: "paid",
-                  paidAt: new Date().toISOString(),
+                  status: paymentStatus,
+                  baseAmountCents: payment.baseAmountCents ?? resolveBaseAmountCents(outstandingPayment),
+                  lateFeeCents: payment.lateFeeCents ?? getTotalDueCents(outstandingPayment) - resolveBaseAmountCents(outstandingPayment),
+                  paidAmountCents: paymentStatus === "paid" ? paidAmountCents : undefined,
+                  paymentMethod: settlement?.paymentMethod ?? payment.paymentMethod,
+                  stripePaymentIntentId: settlement?.stripePaymentIntentId ?? payment.stripePaymentIntentId,
+                  receiptNumber,
+                  failureReason: paymentStatus === "failed" ? settlement?.failureReason ?? "Processor declined the attempt." : undefined,
+                  paidAt: paymentStatus === "paid" ? new Date().toISOString() : undefined,
                 }
               : payment,
           ),
@@ -530,29 +696,49 @@ export const useAppStore = create<AppStore>()(
               id: createId("message"),
               from: current.currentUser!.id,
               to: landlordAccount.id,
-              content: `I just paid ${outstandingPayment.label}. Thanks.`,
+              content: messageContent,
               timestamp: new Date().toISOString(),
               read: false,
             },
           ],
-          activities: prependActivity(
-            current.activities,
-            toActivity("Rent paid", `${currentTenant.name} marked the current rent as paid.`, "payment"),
-          ),
+          activities: prependActivity(current.activities, toActivity("Tenant payment update", activityDetail, "payment")),
+          paymentEvents: prependPaymentEvent(current.paymentEvents, {
+            id: createId("payment-event"),
+            rentPaymentId: outstandingPayment.id,
+            stripeEventId: settlement?.stripePaymentIntentId,
+            eventType,
+            payload: {
+              paymentId: outstandingPayment.id,
+              tenantId: currentTenant.id,
+              status: paymentStatus,
+              method: settlement?.paymentMethod,
+              paidAmountCents,
+              failureReason: settlement?.failureReason,
+              receiptNumber,
+            },
+            createdAt: new Date().toISOString(),
+          }),
         }));
 
-        return { ok: true, message: "Rent marked paid." };
+        return {
+          ok: true,
+          message:
+            paymentStatus === "paid"
+              ? "Rent payment confirmed."
+              : paymentStatus === "pending"
+                ? "Payment intent created. Finish the hosted Stripe step in production."
+                : "Payment attempt saved for follow-up.",
+        };
       },
     }),
     {
       name: APP_STORAGE_KEY,
       storage: createJSONStorage(() => localStorage),
       partialize: selectPersistedData,
+      merge: (persisted, current) => mergePersistedData(persisted as Partial<PersistedAppData>, current as AppStore),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
     },
   ),
 );
-
-
