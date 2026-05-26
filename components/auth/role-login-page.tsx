@@ -15,32 +15,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/store/app-store";
 
-const roleConfig: Record<
-  Role,
-  {
-    title: string;
-    subtitle: string;
-    eyebrow: string;
-    icon: typeof Building2;
-    altHref: string;
-    altLabel: string;
-  }
-> = {
-  landlord: {
-    title: "Landlord login",
-    subtitle: "Step into the full operations view with rent tracking, maintenance, expenses, reports, and tenant messaging.",
-    eyebrow: "Revenue-ready landlord workspace",
-    icon: Building2,
-    altHref: "/login/tenant",
-    altLabel: "Tenant login",
-  },
+const roleConfig = {
   tenant: {
-    title: "Tenant login",
-    subtitle: "See your home, pay rent, submit maintenance requests, and message your landlord from one clean portal.",
-    eyebrow: "Tenant experience that actually reduces support load",
+    title: "Tenant Login",
+    subtitle: "See your lease, pay rent, submit maintenance, message your landlord, and browse new homes — all in one place.",
+    eyebrow: "Tenant Portal",
     icon: Home,
-    altHref: "/login/landlord",
-    altLabel: "Landlord login",
   },
 };
 
