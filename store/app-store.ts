@@ -45,6 +45,7 @@ type AppStore = PersistedAppData & {
   setUpgradeDialogOpen: (value: boolean) => void;
   replacePersistedData: (data: PersistedAppData) => void;
   login: (role: Account["role"], email: string, password: string) => ActionResult;
+  enterDemo: () => void;
   logout: () => void;
   upgradeToPro: () => void;
   setSelectedConversationTenantId: (tenantId: string | null) => void;
@@ -206,6 +207,19 @@ export const useAppStore = create<AppStore>()(
         }));
 
         return { ok: true, message: "Welcome back." };
+      },
+      enterDemo: () => {
+        const tenant = get().accounts.find((a) => a.role === "tenant");
+        if (!tenant) return;
+        set((state) => ({
+          currentUser: toSessionUser(tenant),
+          selectedConversationTenantId: tenant.linkedTenantId ?? state.tenants[0]?.id ?? null,
+          upgradeDialogOpen: false,
+          activities: prependActivity(
+            state.activities,
+            toActivity("Demo session started", "Welcome to the LandlordForge Tenant Portal demo. All data is simulated.", "auth"),
+          ),
+        }));
       },
       logout: () => {
         const resetState = createDemoState();

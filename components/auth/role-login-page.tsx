@@ -24,13 +24,13 @@ const roleConfig = {
   },
 };
 
-export function RoleLoginPage({ role }: { role: Role }) {
+export function RoleLoginPage() {
   const router = useRouter();
   const login = useAppStore((state) => state.login);
   const hasHydrated = useAppStore((state) => state.hasHydrated);
   const currentUser = useAppStore((state) => state.currentUser);
-  const [email, setEmail] = useState<string>(DEMO_CREDENTIALS[role].email);
-  const [password, setPassword] = useState<string>(DEMO_CREDENTIALS[role].password);
+  const [email, setEmail] = useState<string>(DEMO_CREDENTIALS.tenant.email);
+  const [password, setPassword] = useState<string>(DEMO_CREDENTIALS.tenant.password);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -39,18 +39,18 @@ export function RoleLoginPage({ role }: { role: Role }) {
     }
   }, [currentUser, hasHydrated, router]);
 
-  const config = roleConfig[role];
+  const config = roleConfig.tenant;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     startTransition(() => {
-      const result = login(role, email, password);
+      const result = login("tenant", email, password);
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
 
-      toast.success("Demo session ready.");
+      toast.success("Welcome back to your home.");
       router.push("/dashboard");
     });
   }
@@ -77,11 +77,11 @@ export function RoleLoginPage({ role }: { role: Role }) {
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="rounded-3xl border border-border/70 bg-background/70 p-5">
               <p className="text-sm text-muted-foreground">Demo email</p>
-              <p className="mt-2 font-medium">{DEMO_CREDENTIALS[role].email}</p>
+              <p className="mt-2 font-medium">{DEMO_CREDENTIALS.tenant.email}</p>
             </div>
             <div className="rounded-3xl border border-border/70 bg-background/70 p-5">
               <p className="text-sm text-muted-foreground">Demo password</p>
-              <p className="mt-2 font-medium">{DEMO_CREDENTIALS[role].password}</p>
+              <p className="mt-2 font-medium">{DEMO_CREDENTIALS.tenant.password}</p>
             </div>
           </div>
         </section>
@@ -94,9 +94,9 @@ export function RoleLoginPage({ role }: { role: Role }) {
           <CardContent>
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <Label htmlFor={`${role}-email`}>Email</Label>
+                <Label htmlFor="tenant-email">Email</Label>
                 <Input
-                  id={`${role}-email`}
+                  id="tenant-email"
                   type="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -104,11 +104,11 @@ export function RoleLoginPage({ role }: { role: Role }) {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`${role}-password`}>Password</Label>
+                <Label htmlFor="tenant-password">Password</Label>
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id={`${role}-password`}
+                    id="tenant-password"
                     type="password"
                     className="pl-9"
                     value={password}

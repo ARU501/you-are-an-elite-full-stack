@@ -1,6 +1,8 @@
-# LandlordForge
+# LandlordForge — Tenant Portal
 
-LandlordForge is a mobile-first Next.js 15 prototype for small landlords with a built-in tenant portal, persistent messaging, maintenance flows, Pro reporting, and a Stripe-ready rent payment portal that still works entirely in local demo mode.
+**This branch (`TENANT`) is the dedicated, standalone Tenant Portal.**
+
+LandlordForge Tenant Portal is a clean, production-quality demo experience for renters. Pay rent, track your lease and payments, submit maintenance requests, message your landlord, and browse/apply for new homes — all in one friendly interface that runs entirely in demo mode.
 
 ## Stack
 
