@@ -1,6 +1,10 @@
-# LandlordForge
+# LandlordForge — Landlord Portal
 
-LandlordForge is a mobile-first Next.js 15 prototype for small landlords with a built-in tenant portal, persistent messaging, maintenance flows, Pro reporting, and a Stripe-ready rent payment portal that still works entirely in local demo mode.
+**This branch (`LAND-LOARD`) is the dedicated, standalone Landlord Portal.**
+
+LandlordForge Landlord Portal is a production-quality demo of a complete landlord operating system. It includes property management, tenant oversight, rental application review, maintenance request handling, rent collection tracking, financial reports, and a rich in-app messaging center — all running in a seamless, instant-load demo mode with realistic pre-seeded data.
+
+> This is a **landlord-only** experience. The separate `TENANT` branch contains the matching tenant-only portal.
 
 ## Stack
 
@@ -12,17 +16,19 @@ LandlordForge is a mobile-first Next.js 15 prototype for small landlords with a 
 - Recharts for Pro reports
 - PWA manifest + `public/sw.js` service worker stub
 
-## Demo Accounts
+## Demo Access (Instant)
 
-Landlord:
+This landlord portal auto-loads the full demo experience. 
 
+**Quick Start**
+- Visit any protected page (e.g. /dashboard) — you are automatically signed in as the landlord with complete sample data.
+- Or go to [/login/landlord](/login/landlord) and click **Enter Demo Instantly**.
+
+Demo landlord account (if manual login needed):
 - Email: `landlord@demo.com`
 - Password: `demo123`
 
-Tenant:
-
-- Email: `tenant@demo.com`
-- Password: `demo123`
+Everything (properties, tenants, messages, maintenance, payments, applications) is fully interactive and persists in your browser.
 
 ## Key MVP Features
 

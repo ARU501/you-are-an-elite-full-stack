@@ -2,9 +2,9 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "LandlordForge",
+    name: "LandlordForge — Landlord Portal",
     short_name: "LandlordForge",
-    description: "A dead-simple landlord operating system with a tenant portal and persistent messaging.",
+    description: "Professional landlord operating system with property, tenant, maintenance, financial, and messaging tools.",
     start_url: "/",
     display: "standalone",
     background_color: "#09141d",

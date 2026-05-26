@@ -30,16 +30,10 @@ import { useAppStore } from "@/store/app-store";
 const landlordNav = [
   { href: "/dashboard", label: "Dashboard", icon: Home },
   { href: "/properties", label: "Properties", icon: Building2 },
+  { href: "/applications", label: "Applications", icon: Users },
   { href: "/tenants", label: "Tenants", icon: Users },
   { href: "/messages", label: "Messages", icon: MessageSquare },
   { href: "/reports", label: "Reports", icon: BarChart3 },
-];
-
-const tenantNav = [
-  { href: "/dashboard", label: "My Home", icon: Home },
-  { href: "/payments", label: "Payments", icon: CreditCard },
-  { href: "/requests", label: "Requests", icon: Wrench },
-  { href: "/messages", label: "Messages", icon: MessageSquare },
 ];
 
 interface AppShellProps {
@@ -64,8 +58,8 @@ export function AppShell({ title, description, children }: AppShellProps) {
     return null;
   }
 
-  const navItems = currentUser.role === "landlord" ? landlordNav : tenantNav;
-  const isFreeLandlord = currentUser.role === "landlord" && currentUser.tier === "free";
+  const navItems = landlordNav;
+  const isFreeLandlord = currentUser.tier === "free";
 
   return (
     <main className="min-h-screen pb-28 lg:pb-6">
@@ -88,9 +82,7 @@ export function AppShell({ title, description, children }: AppShellProps) {
                       </div>
                       <div>
                         <p className="font-medium">{currentUser.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {currentUser.role === "landlord" ? "Landlord workspace" : "Tenant portal"}
-                        </p>
+                        <p className="text-sm text-muted-foreground">Landlord workspace</p>
                       </div>
                     </div>
                   </div>
@@ -158,14 +150,10 @@ export function AppShell({ title, description, children }: AppShellProps) {
                 <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                   <div className="space-y-2">
                     <div className="flex items-center gap-3">
-                      <Badge variant={currentUser.role === "landlord" ? "default" : "secondary"}>
-                        {currentUser.role === "landlord" ? "Landlord" : "Tenant"}
+                      <Badge variant="default">Landlord</Badge>
+                      <Badge variant={currentUser.tier === "pro" ? "success" : "outline"}>
+                        {currentUser.tier === "pro" ? "Pro" : "Free"}
                       </Badge>
-                      {currentUser.role === "landlord" ? (
-                        <Badge variant={currentUser.tier === "pro" ? "success" : "outline"}>
-                          {currentUser.tier === "pro" ? "Pro" : "Free"}
-                        </Badge>
-                      ) : null}
                     </div>
                     <div>
                       <h1 className="font-heading text-3xl font-semibold text-balance sm:text-4xl">{title}</h1>

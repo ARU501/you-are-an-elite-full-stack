@@ -8,23 +8,18 @@ import { AppShell } from "@/components/app/app-shell";
 import { Role } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
-type RoleText = Partial<Record<Role, string>> | string;
-
 interface ProtectedPageProps {
   roles: Role[];
-  title: RoleText;
-  description: RoleText;
+  title: string;
+  description: string;
   children: React.ReactNode;
-}
-
-function resolveRoleText(value: RoleText, role: Role) {
-  return typeof value === "string" ? value : value[role] ?? "";
 }
 
 export function ProtectedPage({ roles, title, description, children }: ProtectedPageProps) {
   const router = useRouter();
   const hasHydrated = useAppStore((state) => state.hasHydrated);
   const currentUser = useAppStore((state) => state.currentUser);
+  const enterDemo = useAppStore((state) => state.enterDemo);
 
   useEffect(() => {
     if (!hasHydrated) {
@@ -32,14 +27,15 @@ export function ProtectedPage({ roles, title, description, children }: Protected
     }
 
     if (!currentUser) {
-      router.replace("/");
+      // Seamless demo: instantly enter as the landlord with full pre-loaded data
+      enterDemo();
       return;
     }
 
     if (!roles.includes(currentUser.role)) {
       router.replace("/dashboard");
     }
-  }, [currentUser, hasHydrated, roles, router]);
+  }, [currentUser, hasHydrated, roles, router, enterDemo]);
 
   if (!hasHydrated || !currentUser || !roles.includes(currentUser.role)) {
     return (
@@ -52,11 +48,11 @@ export function ProtectedPage({ roles, title, description, children }: Protected
     );
   }
 
+  const displayTitle = currentUser ? title : "Preparing workspace";
+  const displayDescription = currentUser ? description : "Loading your landlord portal...";
+
   return (
-    <AppShell
-      title={resolveRoleText(title, currentUser.role)}
-      description={resolveRoleText(description, currentUser.role)}
-    >
+    <AppShell title={displayTitle} description={displayDescription}>
       {children}
     </AppShell>
   );

@@ -2,55 +2,34 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { ArrowRight, Building2, DoorOpen, Home, KeyRound } from "lucide-react";
+import { Building2, DoorOpen, KeyRound, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { DEMO_CREDENTIALS } from "@/lib/demo-data";
-import { Role } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppStore } from "@/store/app-store";
 
-const roleConfig: Record<
-  Role,
-  {
-    title: string;
-    subtitle: string;
-    eyebrow: string;
-    icon: typeof Building2;
-    altHref: string;
-    altLabel: string;
-  }
-> = {
+const roleConfig = {
   landlord: {
-    title: "Landlord login",
-    subtitle: "Step into the full operations view with rent tracking, maintenance, expenses, reports, and tenant messaging.",
-    eyebrow: "Revenue-ready landlord workspace",
+    title: "Landlord Login",
+    subtitle: "Access your complete property portfolio, tenant oversight, maintenance queue, financial reports, and messaging center.",
+    eyebrow: "Professional Landlord Portal",
     icon: Building2,
-    altHref: "/login/tenant",
-    altLabel: "Tenant login",
-  },
-  tenant: {
-    title: "Tenant login",
-    subtitle: "See your home, pay rent, submit maintenance requests, and message your landlord from one clean portal.",
-    eyebrow: "Tenant experience that actually reduces support load",
-    icon: Home,
-    altHref: "/login/landlord",
-    altLabel: "Landlord login",
   },
 };
 
-export function RoleLoginPage({ role }: { role: Role }) {
+export function RoleLoginPage() {
   const router = useRouter();
   const login = useAppStore((state) => state.login);
   const hasHydrated = useAppStore((state) => state.hasHydrated);
   const currentUser = useAppStore((state) => state.currentUser);
-  const [email, setEmail] = useState<string>(DEMO_CREDENTIALS[role].email);
-  const [password, setPassword] = useState<string>(DEMO_CREDENTIALS[role].password);
+  const [email, setEmail] = useState<string>(DEMO_CREDENTIALS.landlord.email);
+  const [password, setPassword] = useState<string>(DEMO_CREDENTIALS.landlord.password);
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -59,96 +38,93 @@ export function RoleLoginPage({ role }: { role: Role }) {
     }
   }, [currentUser, hasHydrated, router]);
 
-  const config = roleConfig[role];
+  const config = roleConfig.landlord;
 
   function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     startTransition(() => {
-      const result = login(role, email, password);
+      const result = login("landlord", email, password);
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
 
-      toast.success("Demo session ready.");
+      toast.success("Welcome back, Morgan. Your portfolio is ready.");
       router.push("/dashboard");
     });
   }
 
+  // Quick demo entry - auto login with one click for the best demo experience
+  function quickDemoEntry() {
+    startTransition(() => {
+      const result = login("landlord", DEMO_CREDENTIALS.landlord.email, DEMO_CREDENTIALS.landlord.password);
+      if (result.ok) {
+        toast.success("Demo session started instantly.");
+        router.push("/dashboard");
+      }
+    });
+  }
+
   return (
-    <main className="surface-grid min-h-screen px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-6xl items-center justify-between pb-6">
-        <Link href="/" className="font-heading text-xl font-semibold">
+    <main className="min-h-screen bg-gradient-to-b from-background to-muted/20 px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto flex max-w-5xl items-center justify-between pb-8">
+        <Link href="/" className="font-heading text-2xl font-semibold tracking-tight">
           LandlordForge
         </Link>
         <ThemeToggle />
       </div>
 
-      <div className="mx-auto grid min-h-[calc(100vh-8rem)] max-w-6xl items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-        <section className="space-y-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-background/80 px-4 py-2 text-sm text-muted-foreground">
-            <config.icon className="h-4 w-4 text-primary" />
+      <div className="mx-auto grid max-w-5xl items-center gap-12 lg:grid-cols-[1fr_1fr]">
+        <div className="space-y-6">
+          <div className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary">
+            <config.icon className="h-4 w-4" />
             {config.eyebrow}
           </div>
-          <div className="space-y-4">
-            <h1 className="font-heading text-5xl font-semibold leading-tight text-balance">{config.title}</h1>
-            <p className="max-w-xl text-lg text-muted-foreground">{config.subtitle}</p>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="rounded-3xl border border-border/70 bg-background/70 p-5">
-              <p className="text-sm text-muted-foreground">Demo email</p>
-              <p className="mt-2 font-medium">{DEMO_CREDENTIALS[role].email}</p>
-            </div>
-            <div className="rounded-3xl border border-border/70 bg-background/70 p-5">
-              <p className="text-sm text-muted-foreground">Demo password</p>
-              <p className="mt-2 font-medium">{DEMO_CREDENTIALS[role].password}</p>
-            </div>
-          </div>
-        </section>
+          <h1 className="font-heading text-5xl font-semibold tracking-tighter leading-tight">{config.title}</h1>
+          <p className="text-xl text-muted-foreground max-w-md">{config.subtitle}</p>
 
-        <Card className="overflow-hidden border-white/60 bg-white/85 shadow-glow dark:border-white/10 dark:bg-card/85">
-          <CardHeader className="space-y-3">
-            <CardTitle className="text-2xl">{config.title}</CardTitle>
-            <CardDescription>Use the preloaded demo account or swap credentials once a backend exists.</CardDescription>
+          <div className="pt-4">
+            <Button onClick={quickDemoEntry} size="lg" className="w-full sm:w-auto h-12 text-base" disabled={isPending}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Enter Demo Instantly
+            </Button>
+            <p className="mt-3 text-xs text-muted-foreground">No typing needed — full portfolio pre-loaded with sample data.</p>
+          </div>
+        </div>
+
+        <Card className="border-primary/20 shadow-2xl">
+          <CardHeader>
+            <CardTitle className="text-2xl">Sign in to your workspace</CardTitle>
+            <CardDescription>Pre-filled with the landlord demo account</CardDescription>
           </CardHeader>
           <CardContent>
             <form className="space-y-5" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <Label htmlFor={`${role}-email`}>Email</Label>
-                <Input
-                  id={`${role}-email`}
-                  type="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  required
-                />
+                <Label htmlFor="email">Email address</Label>
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor={`${role}-password`}>Password</Label>
+                <Label htmlFor="password">Password</Label>
                 <div className="relative">
                   <KeyRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id={`${role}-password`}
+                    id="password"
                     type="password"
                     className="pl-9"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                     required
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full" size="lg" disabled={isPending}>
-                <DoorOpen className="h-4 w-4" />
-                Enter demo
+              <Button type="submit" className="w-full h-11" size="lg" disabled={isPending}>
+                <DoorOpen className="h-4 w-4 mr-2" />
+                Enter Landlord Portal
               </Button>
             </form>
 
-            <div className="mt-5 rounded-3xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-              Need the other side of the workflow?{" "}
-              <Link href={config.altHref} className="font-medium text-foreground">
-                {config.altLabel}
-              </Link>
-              <ArrowRight className="ml-1 inline h-3.5 w-3.5" />
+            <div className="mt-6 rounded-xl bg-muted/60 p-4 text-xs text-muted-foreground">
+              This is a fully functional demo. All actions (adding properties, updating maintenance, messaging tenants, recording payments) persist in your browser.
             </div>
           </CardContent>
         </Card>
