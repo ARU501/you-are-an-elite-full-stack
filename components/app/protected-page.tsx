@@ -8,11 +8,17 @@ import { AppShell } from "@/components/app/app-shell";
 import { Role } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
+type PageCopy = string | Record<Role, string>;
+
 interface ProtectedPageProps {
   roles: Role[];
-  title: string;
-  description: string;
+  title: PageCopy;
+  description: PageCopy;
   children: React.ReactNode;
+}
+
+function getPageCopy(copy: PageCopy, role: Role) {
+  return typeof copy === "string" ? copy : copy[role];
 }
 
 export function ProtectedPage({ roles, title, description, children }: ProtectedPageProps) {
@@ -48,8 +54,8 @@ export function ProtectedPage({ roles, title, description, children }: Protected
     );
   }
 
-  const displayTitle = currentUser ? title : "Preparing workspace";
-  const displayDescription = currentUser ? description : "Loading your landlord portal...";
+  const displayTitle = currentUser ? getPageCopy(title, currentUser.role) : "Preparing workspace";
+  const displayDescription = currentUser ? getPageCopy(description, currentUser.role) : "Loading your landlord portal...";
 
   return (
     <AppShell title={displayTitle} description={displayDescription}>
