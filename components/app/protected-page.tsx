@@ -2,21 +2,25 @@
 
 import { useEffect } from "react";
 import { LoaderCircle } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app/app-shell";
 import { Role } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
+type PageCopy = string | Record<Role, string>;
+
 interface ProtectedPageProps {
   roles: Role[];
-  title: string;
-  description: string;
+  title: PageCopy;
+  description: PageCopy;
   children: React.ReactNode;
 }
 
+function getPageCopy(copy: PageCopy, role: Role) {
+  return typeof copy === "string" ? copy : copy[role];
+}
+
 export function ProtectedPage({ roles, title, description, children }: ProtectedPageProps) {
-  const router = useRouter();
   const hasHydrated = useAppStore((state) => state.hasHydrated);
   const currentUser = useAppStore((state) => state.currentUser);
   const enterDemo = useAppStore((state) => state.enterDemo);
@@ -26,16 +30,11 @@ export function ProtectedPage({ roles, title, description, children }: Protected
       return;
     }
 
-    if (!currentUser) {
-      // Seamless demo: instantly enter as the tenant with full pre-loaded data
+    if (!currentUser || !roles.includes(currentUser.role)) {
+      // Seamless tenant demo: recover from empty or sibling-branch sessions.
       enterDemo();
-      return;
     }
-
-    if (!roles.includes(currentUser.role)) {
-      router.replace("/dashboard");
-    }
-  }, [currentUser, hasHydrated, roles, router, enterDemo]);
+  }, [currentUser, hasHydrated, roles, enterDemo]);
 
   if (!hasHydrated || !currentUser || !roles.includes(currentUser.role)) {
     return (
@@ -49,7 +48,7 @@ export function ProtectedPage({ roles, title, description, children }: Protected
   }
 
   return (
-    <AppShell title={title} description={description}>
+    <AppShell title={getPageCopy(title, currentUser.role)} description={getPageCopy(description, currentUser.role)}>
       {children}
     </AppShell>
   );

@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
-import { ArrowRight, Building2, DoorOpen, Home, KeyRound } from "lucide-react";
+import { ArrowRight, DoorOpen, Home, KeyRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { DEMO_CREDENTIALS } from "@/lib/demo-data";
-import { Role } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +20,8 @@ const roleConfig = {
     subtitle: "See your lease, pay rent, submit maintenance, message your landlord, and browse new homes — all in one place.",
     eyebrow: "Tenant Portal",
     icon: Home,
+    altHref: "/",
+    altLabel: "Back to tenant overview",
   },
 };
 
@@ -124,7 +125,7 @@ export function RoleLoginPage() {
             </form>
 
             <div className="mt-5 rounded-3xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-              Need the other side of the workflow?{" "}
+              Want the full tenant overview?{" "}
               <Link href={config.altHref} className="font-medium text-foreground">
                 {config.altLabel}
               </Link>
