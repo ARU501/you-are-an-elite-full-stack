@@ -1,38 +1,111 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
+'use client'
 
-import { ThemeToggle } from "@/components/app/theme-toggle";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { createClient } from '@/lib/supabase/client'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { toast } from 'sonner'
 
-export default function LoginChooserPage() {
+export default function LoginPage() {
+  const router = useRouter()
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const supabase = createClient()
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+
+      if (error) throw error
+
+      // Fetch the user's role from profiles table
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', data.user.id)
+        .single()
+
+      if (profileError) {
+        console.error('Profile fetch error:', profileError)
+        // If profile doesn't exist yet (edge case), send to dashboard
+        router.push('/dashboard')
+        return
+      }
+
+      // Role-based redirect (you can customize these routes)
+      if (profile?.role === 'landlord') {
+        router.push('/dashboard')
+      } else if (profile?.role === 'tenant') {
+        router.push('/dashboard')
+      } else {
+        router.push('/dashboard')
+      }
+
+      toast.success('Logged in successfully')
+    } catch (error: any) {
+      toast.error(error.message || 'Login failed. Please check your credentials.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <main className="min-h-screen bg-gradient-to-b from-background to-muted/20 px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto flex max-w-5xl items-center justify-between pb-6">
-        <Link href="/" className="font-heading text-2xl font-semibold tracking-tight">
-          LandlordForge
-        </Link>
-        <ThemeToggle />
-      </div>
+    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/40">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Sign in to LandlordForge</CardTitle>
+          <CardDescription>
+            Access your landlord or tenant portal
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Email address</Label>
+              <Input 
+                type="email" 
+                placeholder="you@example.com"
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+              />
+            </div>
 
-      <div className="mx-auto max-w-lg">
-        <Card className="border-primary/20 shadow-2xl">
-          <CardHeader className="text-center pb-2">
-            <CardTitle className="text-3xl">Landlord Portal</CardTitle>
-            <CardDescription className="text-base pt-2">Sign in to manage your full portfolio</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4 pt-4">
-            <Button asChild size="lg" className="w-full h-12 text-base">
-              <Link href="/login/landlord">
-                Enter Landlord Demo <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input 
+                type="password" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={loading} size="lg">
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Instant access with realistic demo data. All changes persist locally.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    </main>
-  );
+
+            <div className="text-center text-sm text-muted-foreground">
+              Don&apos;t have an account?{' '}
+              <Link href="/signup" className="font-medium text-foreground hover:underline">
+                Create one
+              </Link>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
+  )
 }

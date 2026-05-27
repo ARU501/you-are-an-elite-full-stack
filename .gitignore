@@ -1,9 +1,49 @@
-.next
-node_modules
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Production
+dist/
+build/
+
+# Debug
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Keep example file tracked
+!.env.example
+
+# Editor / OS
 .DS_Store
-dist
-coverage
-.logs
-.tools
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Vercel
 .vercel
+
+# Misc
+*.pem
+*.tsbuildinfo
+
+# pnpm
+.pnpm-store/
+
+# Temporary / helper scripts (optional - can be removed later)
+run-*.ps1
+SUPABASE_SETUP.md
