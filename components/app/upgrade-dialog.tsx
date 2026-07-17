@@ -71,9 +71,9 @@ export function UpgradeDialog() {
           </Button>
           <Button
             type="button"
-            onClick={() => {
-              upgradeToPro();
-              toast.success("Pro unlocked for this demo workspace.");
+            onClick={async () => {
+              const result = await upgradeToPro();
+              result.ok ? toast.success(result.message) : toast.error(result.message);
             }}
           >
             <MessageSquareMore className="h-4 w-4" />

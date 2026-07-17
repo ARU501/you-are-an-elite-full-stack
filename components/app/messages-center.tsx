@@ -70,7 +70,7 @@ export function MessagesCenter() {
 
   useEffect(() => {
     if (activeTenantId) {
-      markConversationRead(activeTenantId);
+      void markConversationRead(activeTenantId);
     }
   }, [activeTenantId, markConversationRead]);
 
@@ -81,18 +81,18 @@ export function MessagesCenter() {
     });
   }, [conversation.length]);
 
-  function submitMessage(event: React.FormEvent<HTMLFormElement>) {
+  async function submitMessage(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = sendMessage(draft, activeTenantId ?? undefined);
+    const result = await sendMessage(draft, activeTenantId ?? undefined);
     result.ok ? toast.success(result.message) : toast.error(result.message);
     if (result.ok) {
       setDraft("");
     }
   }
 
-  function submitBroadcast(event: React.FormEvent<HTMLFormElement>) {
+  async function submitBroadcast(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = broadcastMessage(broadcastDraft);
+    const result = await broadcastMessage(broadcastDraft);
     result.ok ? toast.success(result.message) : toast.error(result.message);
     if (result.ok) {
       setBroadcastDraft("");

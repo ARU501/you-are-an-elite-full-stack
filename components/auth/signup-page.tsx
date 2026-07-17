@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Building2, DoorOpen, KeyRound, UserRound } from "lucide-react";
+import { Building2, KeyRound, UserPlus, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -16,26 +16,28 @@ import { useAppStore } from "@/store/app-store";
 
 const roleConfig: Record<Role, { title: string; subtitle: string; eyebrow: string; icon: typeof Building2 }> = {
   landlord: {
-    title: "Landlord Login",
-    subtitle:
-      "Access your complete property portfolio, tenant oversight, maintenance queue, financial reports, and messaging center.",
+    title: "Create your landlord account",
+    subtitle: "Set up your portfolio in minutes: add properties, review applications, collect rent, and message tenants.",
     eyebrow: "Professional Landlord Portal",
     icon: Building2,
   },
   tenant: {
-    title: "Tenant Login",
-    subtitle: "Pay rent, submit maintenance requests, browse available homes, and message your landlord in one place.",
+    title: "Create your tenant account",
+    subtitle:
+      "Sign up with the email on your lease and your home connects automatically. Browse listings and apply in-app.",
     eyebrow: "Resident Tenant Portal",
     icon: UserRound,
   },
 };
 
-export function RoleLoginPage({ role = "landlord" }: { role?: Role }) {
+export function SignupPage({ role = "landlord" }: { role?: Role }) {
   const router = useRouter();
-  const login = useAppStore((state) => state.login);
+  const signup = useAppStore((state) => state.signup);
   const hasHydrated = useAppStore((state) => state.hasHydrated);
   const currentUser = useAppStore((state) => state.currentUser);
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -51,14 +53,15 @@ export function RoleLoginPage({ role = "landlord" }: { role?: Role }) {
     event.preventDefault();
     setIsPending(true);
     try {
-      const result = await login(role, email, password);
+      const result = await signup(role, { name, email, password, phone });
       if (!result.ok) {
         toast.error(result.message);
         return;
       }
 
-      toast.success("Welcome back. Your workspace is ready.");
-      router.push("/dashboard");
+      toast.success(result.message, { duration: 8000 });
+      const { currentUser: signedInUser } = useAppStore.getState();
+      router.push(signedInUser ? "/dashboard" : "/login");
     } finally {
       setIsPending(false);
     }
@@ -81,34 +84,43 @@ export function RoleLoginPage({ role = "landlord" }: { role?: Role }) {
           </div>
           <h1 className="font-heading text-5xl font-semibold tracking-tighter leading-tight">{config.title}</h1>
           <p className="text-xl text-muted-foreground max-w-md">{config.subtitle}</p>
-
-          <div className="pt-4">
-            <p className="text-sm text-muted-foreground">
-              New to LandlordForge?{" "}
-              <Link href="/signup" className="font-medium text-primary hover:underline">
-                Create your {role} account
-              </Link>
-            </p>
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Already registered?{" "}
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Sign in instead
+            </Link>
+          </p>
         </div>
 
         <Card className="border-primary/20 shadow-2xl">
           <CardHeader>
-            <CardTitle className="text-2xl">Sign in to your workspace</CardTitle>
-            <CardDescription>Use the email and password you registered with</CardDescription>
+            <CardTitle className="text-2xl">Get started free</CardTitle>
+            <CardDescription>
+              {role === "landlord"
+                ? "Free includes 2 properties and 10 landlord messages. Upgrade anytime."
+                : "Free for tenants, always."}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <form className="space-y-5" onSubmit={handleSubmit}>
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="name">Full name</Label>
+                <Input id="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jordan Hale" required />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email address</Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder={role === "tenant" ? "the email on your lease" : "you@example.com"}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone (optional)</Label>
+                <Input id="phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(555) 555-0100" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="password">Password</Label>
@@ -118,6 +130,8 @@ export function RoleLoginPage({ role = "landlord" }: { role?: Role }) {
                     id="password"
                     type="password"
                     className="pl-9"
+                    minLength={6}
+                    placeholder="Minimum 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -125,15 +139,10 @@ export function RoleLoginPage({ role = "landlord" }: { role?: Role }) {
                 </div>
               </div>
               <Button type="submit" className="w-full h-11" size="lg" disabled={isPending}>
-                <DoorOpen className="h-4 w-4 mr-2" />
-                {isPending ? "Signing in..." : role === "landlord" ? "Enter Landlord Portal" : "Enter Tenant Portal"}
+                <UserPlus className="h-4 w-4 mr-2" />
+                {isPending ? "Creating account..." : "Create Account"}
               </Button>
             </form>
-
-            <div className="mt-6 rounded-xl bg-muted/60 p-4 text-xs text-muted-foreground">
-              Your data is stored securely in your Supabase project and protected with row-level security. Every
-              property, payment, and message is scoped to your account.
-            </div>
           </CardContent>
         </Card>
       </div>

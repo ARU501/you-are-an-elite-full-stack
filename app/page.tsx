@@ -16,7 +16,7 @@ export default function HomePage() {
           </Link>
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="hidden sm:inline-flex border-emerald-300 text-emerald-700 dark:border-emerald-800">
-              Tenant Portal • Demo
+              Tenant Portal
             </Badge>
             <ThemeToggle />
           </div>
@@ -33,25 +33,25 @@ export default function HomePage() {
                 Everything about your rental <span className="text-emerald-600 dark:text-emerald-400">in one calm place</span>.
               </h1>
               <p className="max-w-2xl text-lg text-muted-foreground sm:text-xl">
-                Pay rent, track your lease, submit maintenance requests, message your landlord, and browse new homes — 
-                beautifully designed and instantly demoable.
+                Pay rent, track your lease, submit maintenance requests, message your landlord, and browse new homes —
+                with a real account that syncs live with your landlord&apos;s portal.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="h-12 px-8 text-base bg-emerald-600 hover:bg-emerald-700">
-                <Link href="/login/tenant">
-                  Enter Tenant Portal
+                <Link href="/signup">
+                  Create your account
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="h-12 px-6">
-                <Link href="#features">Explore features</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
             </div>
 
             <div className="pt-2 text-sm text-muted-foreground">
-              Pre-loaded with your demo lease • Instant login • No account needed
+              Sign up with the email on your lease and your home connects automatically • Free for tenants
             </div>
           </div>
 
@@ -63,46 +63,37 @@ export default function HomePage() {
                     <Home className="h-6 w-6" />
                   </div>
                   <div>
-                    <CardTitle className="text-2xl">Tenant Demo</CardTitle>
-                    <CardDescription className="text-base">Your complete renter experience, ready instantly.</CardDescription>
+                    <CardTitle className="text-2xl">Tenant Portal</CardTitle>
+                    <CardDescription className="text-base">Your complete renter experience, in one account.</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-muted/50 p-4 text-sm">
-                  <div>
-                    <div className="text-muted-foreground text-xs">Demo email</div>
-                    <div className="font-semibold mt-1">tenant@demo.com</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground text-xs">Password</div>
-                    <div className="font-semibold mt-1">demo123</div>
-                  </div>
-                </div>
+                <ul className="space-y-3 rounded-2xl border bg-muted/50 p-4 text-sm">
+                  <li className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-emerald-600" />
+                    Pay rent by card or bank through Stripe, with receipts
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <Wrench className="h-4 w-4 text-emerald-600" />
+                    Maintenance requests land in your landlord&apos;s queue instantly
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                    Your data is protected with row-level security
+                  </li>
+                </ul>
                 <Button asChild size="lg" className="w-full bg-emerald-600 hover:bg-emerald-700">
-                  <Link href="/login/tenant">
+                  <Link href="/login">
                     Open My Tenant Portal
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">Seamless demo • All actions saved locally</p>
+                <p className="text-center text-xs text-muted-foreground">
+                  Landlords use the separate Landlord Portal app with the same account system.
+                </p>
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-emerald-600">1</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Active Lease</div>
-              </div>
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-emerald-600">$1,650</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Monthly Rent</div>
-              </div>
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-emerald-600">Aug 31</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Lease End</div>
-              </div>
-            </div>
           </div>
         </section>
 

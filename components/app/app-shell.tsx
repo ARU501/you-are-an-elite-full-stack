@@ -162,8 +162,8 @@ export function AppShell({ title, description, children }: AppShellProps) {
                     <ThemeToggle />
                     <Button
                       variant="outline"
-                      onClick={() => {
-                        logout();
+                      onClick={async () => {
+                        await logout();
                         toast.success("Signed out.");
                         router.push("/");
                       }}

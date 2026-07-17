@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { StripePaymentDialog, StripeSettlementStatus } from "@/components/app/stripe-payment-dialog";
 import { formatCurrency, formatLongDate } from "@/lib/formatters";
 import {
   centsToDollars,
@@ -59,6 +60,12 @@ export function TenantPayments() {
   const [autopayEnabled, setAutopayEnabled] = useState(profile?.autopayEnabled ?? false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastMode, setLastMode] = useState<PaymentIntentResponse["mode"]>("demo");
+  const [stripeSession, setStripeSession] = useState<{
+    clientSecret: string;
+    paymentIntentId: string;
+    paymentId: string;
+    amountCents: number;
+  } | null>(null);
 
   useEffect(() => {
     setSelectedMethod(profile?.autopayMethod ?? "ach");
@@ -95,7 +102,7 @@ export function TenantPayments() {
 
     setIsSubmitting(true);
 
-    const profileResult = updateCurrentTenantPaymentProfile({
+    const profileResult = await updateCurrentTenantPaymentProfile({
       autopayEnabled,
       autopayMethod: selectedMethod,
       savedPaymentLabel: getSavedPaymentLabel(selectedMethod),
@@ -130,7 +137,19 @@ export function TenantPayments() {
 
       setLastMode(payload.mode);
 
-      const settlementResult = payRentForCurrentTenant({
+      if (payload.mode === "stripe" && payload.clientSecret) {
+        // Hand off to Stripe's secure payment element. Settlement lands
+        // through onSettled below and the Stripe webhook server-side.
+        setStripeSession({
+          clientSecret: payload.clientSecret,
+          paymentIntentId: payload.paymentIntentId,
+          paymentId: duePayment.id,
+          amountCents: payload.amountCents,
+        });
+        return;
+      }
+
+      const settlementResult = await payRentForCurrentTenant({
         paymentId: duePayment.id,
         paymentMethod: selectedMethod,
         paymentStatus: payload.status,
@@ -154,6 +173,23 @@ export function TenantPayments() {
     }
   }
 
+  async function handleStripeSettled(status: StripeSettlementStatus, failureReason?: string) {
+    if (!stripeSession) {
+      return;
+    }
+
+    const settlementResult = await payRentForCurrentTenant({
+      paymentId: stripeSession.paymentId,
+      paymentMethod: selectedMethod,
+      paymentStatus: status,
+      stripePaymentIntentId: stripeSession.paymentIntentId,
+      paidAmountCents: status === "paid" ? stripeSession.amountCents : undefined,
+      failureReason,
+    });
+
+    settlementResult.ok ? toast.success(settlementResult.message) : toast.error(settlementResult.message);
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
@@ -168,10 +204,10 @@ export function TenantPayments() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <CardTitle>Rent payment portal</CardTitle>
-                <CardDescription>Stripe-ready API contract with demo mode fallback while state stays local.</CardDescription>
+                <CardDescription>Pay by card or bank through Stripe, or record a manual payment when Stripe is not connected.</CardDescription>
               </div>
               <Badge variant={lastMode === "stripe" ? "default" : "secondary"}>
-                {lastMode === "stripe" ? "Stripe intent ready" : "Demo mode"}
+                {lastMode === "stripe" ? "Stripe live" : "Manual mode"}
               </Badge>
             </div>
           </CardHeader>
@@ -240,8 +276,9 @@ export function TenantPayments() {
               </div>
 
               <div className="rounded-2xl border border-border/70 bg-muted/40 p-4 text-sm text-muted-foreground">
-                In production, LandlordForge should hand off card or bank collection to Stripe-hosted flows or Elements.
-                This prototype keeps payment state local while the API contract is already in place.
+                With Stripe connected, payments run through Stripe&apos;s secure payment element and settle
+                automatically via webhooks. Without Stripe keys, payments are recorded as received manually (check,
+                Zelle, cash) and your landlord is notified instantly.
               </div>
 
               <Button
@@ -276,7 +313,7 @@ export function TenantPayments() {
                 </div>
                 <div>
                   <p className="font-medium">Tenant payment profile</p>
-                  <p className="text-sm text-muted-foreground">{profile?.stripeCustomerId ?? "Created locally until Stripe is connected."}</p>
+                  <p className="text-sm text-muted-foreground">{profile?.stripeCustomerId || "Synced to your account across devices."}</p>
                 </div>
               </div>
 
@@ -318,6 +355,14 @@ export function TenantPayments() {
           </CardContent>
         </Card>
       </div>
+
+      <StripePaymentDialog
+        open={Boolean(stripeSession)}
+        clientSecret={stripeSession?.clientSecret ?? null}
+        amountCents={stripeSession?.amountCents ?? 0}
+        onClose={() => setStripeSession(null)}
+        onSettled={handleStripeSettled}
+      />
     </div>
   );
 }

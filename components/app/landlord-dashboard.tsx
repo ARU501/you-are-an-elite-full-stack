@@ -199,8 +199,8 @@ export function LandlordDashboard() {
                         </Button>
                       ) : (
                         <Button
-                          onClick={() => {
-                            const result = markPaymentPaid(payment.id);
+                          onClick={async () => {
+                            const result = await markPaymentPaid(payment.id);
                             result.ok ? toast.success(result.message) : toast.error(result.message);
                           }}
                         >
@@ -272,8 +272,8 @@ export function LandlordDashboard() {
                         key={status}
                         size="sm"
                         variant={request.status === status ? "default" : "outline"}
-                        onClick={() => {
-                          const result = updateRequestStatus(request.id, status);
+                        onClick={async () => {
+                          const result = await updateRequestStatus(request.id, status);
                           result.ok ? toast.success(result.message) : toast.error(result.message);
                         }}
                       >
