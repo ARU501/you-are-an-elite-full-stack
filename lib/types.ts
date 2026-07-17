@@ -4,7 +4,8 @@ export type PaymentStatus = "due" | "overdue" | "pending" | "paid" | "failed";
 export type PaymentMethodType = "ach" | "card";
 export type RequestStatus = "open" | "in-progress" | "done";
 export type Priority = "low" | "medium" | "high";
-export type PropertyStatus = "occupied" | "attention";
+export type PropertyStatus = "occupied" | "attention" | "vacant";
+export type ApplicationStatus = "pending" | "approved" | "declined";
 export type ActivityType = "payment" | "request" | "expense" | "message" | "property" | "auth" | "system";
 
 export interface Account {
@@ -210,4 +211,44 @@ export interface PaymentIntentResponse {
 export interface ActionResult {
   ok: boolean;
   message: string;
+}
+
+export interface ApplicationItem {
+  id: string;
+  propertyId: string;
+  applicantId: string;
+  name: string;
+  email: string;
+  phone: string;
+  moveIn: string;
+  income: string;
+  notes: string;
+  status: ApplicationStatus;
+  createdAt: string;
+}
+
+export interface ListingItem {
+  id: string;
+  landlordId: string;
+  address: string;
+  unitLabel: string;
+  monthlyRent: number;
+  description: string;
+}
+
+export interface ApplicationDraft {
+  propertyId: string;
+  name: string;
+  email: string;
+  phone: string;
+  moveIn: string;
+  income: string;
+  notes: string;
+}
+
+export interface SignupDraft {
+  name: string;
+  email: string;
+  password: string;
+  phone?: string;
 }

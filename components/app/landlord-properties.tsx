@@ -93,18 +93,20 @@ export function LandlordProperties() {
     setPropertyDialogOpen(true);
   }
 
-  function handlePropertySubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handlePropertySubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = editingPropertyId ? updateProperty(editingPropertyId, propertyDraft) : addProperty(propertyDraft);
+    const result = editingPropertyId
+      ? await updateProperty(editingPropertyId, propertyDraft)
+      : await addProperty(propertyDraft);
     result.ok ? toast.success(result.message) : toast.error(result.message);
     if (result.ok) {
       setPropertyDialogOpen(false);
     }
   }
 
-  function handleExpenseSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleExpenseSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = addExpense(expenseDraft);
+    const result = await addExpense(expenseDraft);
     result.ok ? toast.success(result.message) : toast.error(result.message);
     if (result.ok) {
       setExpenseDialogOpen(false);
@@ -160,7 +162,9 @@ export function LandlordProperties() {
                       </p>
                       <p className="text-sm text-muted-foreground">{propertyTenants.map((tenant) => tenant.name).join(", ")}</p>
                     </div>
-                    <Badge variant={property.status === "attention" ? "warning" : "success"}>{property.status}</Badge>
+                    <Badge variant={property.status === "attention" ? "warning" : property.status === "vacant" ? "secondary" : "success"}>
+                      {property.status}
+                    </Badge>
                   </div>
 
                   <div className="grid gap-3 sm:grid-cols-2">
@@ -271,6 +275,7 @@ export function LandlordProperties() {
                 >
                   <option value="occupied">Occupied</option>
                   <option value="attention">Attention</option>
+                  <option value="vacant">Vacant (listed for rent)</option>
                 </select>
               </div>
             </div>

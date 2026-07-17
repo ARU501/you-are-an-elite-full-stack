@@ -34,9 +34,9 @@ export function TenantRequests() {
     return null;
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const result = submitMaintenanceRequest(draft);
+    const result = await submitMaintenanceRequest(draft);
     result.ok ? toast.success(result.message) : toast.error(result.message);
     if (result.ok) {
       setDraft({

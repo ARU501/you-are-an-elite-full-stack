@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, MessageSquareMore, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
+import { ArrowRight, Building2, CreditCard, MessageSquareMore, ShieldCheck, Sparkles, Users, Wrench } from "lucide-react";
 
 import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ export default function HomePage() {
           </Link>
           <div className="flex items-center gap-3">
             <Badge variant="secondary" className="hidden sm:inline-flex border-primary/30">
-              Landlord Portal • Demo
+              Landlord Portal
             </Badge>
             <ThemeToggle />
           </div>
@@ -33,25 +33,26 @@ export default function HomePage() {
                 Run your rental portfolio with <span className="text-primary">clarity and control</span>.
               </h1>
               <p className="max-w-2xl text-lg text-muted-foreground sm:text-xl">
-                A complete landlord workspace with property management, tenant oversight, maintenance, rent collection, 
-                financial reports, and direct messaging — all in one beautiful, production-ready demo.
+                A complete landlord workspace with property management, tenant oversight, maintenance, rent collection,
+                financial reports, and direct messaging — backed by a real database, live sync, and Stripe-ready
+                payments.
               </p>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Button asChild size="lg" className="h-12 px-8 text-base">
-                <Link href="/login/landlord">
-                  Launch Landlord Demo
+                <Link href="/signup">
+                  Create your account
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline" className="h-12 px-6">
-                <Link href="#features">See features</Link>
+                <Link href="/login">Sign in</Link>
               </Button>
             </div>
 
             <div className="pt-2 text-sm text-muted-foreground">
-              Pre-loaded with realistic demo data • Auto-login ready • No signup required
+              Free plan includes 2 properties and tenant messaging • No credit card required
             </div>
           </div>
 
@@ -63,53 +64,46 @@ export default function HomePage() {
                     <Building2 className="h-6 w-6" />
                   </div>
                   <div>
-                    <CardTitle className="text-2xl">Landlord Demo</CardTitle>
-                    <CardDescription className="text-base">Everything you need to manage rentals professionally.</CardDescription>
+                    <CardTitle className="text-2xl">Landlord Portal</CardTitle>
+                    <CardDescription className="text-base">
+                      Everything you need to manage rentals professionally.
+                    </CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-3 rounded-2xl border bg-muted/50 p-4 text-sm">
-                  <div>
-                    <div className="text-muted-foreground text-xs">Demo email</div>
-                    <div className="font-semibold mt-1">landlord@demo.com</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground text-xs">Password</div>
-                    <div className="font-semibold mt-1">demo123</div>
-                  </div>
-                </div>
+                <ul className="space-y-3 rounded-2xl border bg-muted/50 p-4 text-sm">
+                  <li className="flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-primary" />
+                    Real accounts with row-level security per landlord
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    Rent charges generated monthly, Stripe collection ready
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <MessageSquareMore className="h-4 w-4 text-primary" />
+                    Live-synced messaging with the matching Tenant Portal
+                  </li>
+                </ul>
                 <Button asChild size="lg" className="w-full">
-                  <Link href="/login/landlord">
+                  <Link href="/login">
                     Enter the Landlord Portal
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
-                <p className="text-center text-xs text-muted-foreground">Instant access • Full-featured demo</p>
+                <p className="text-center text-xs text-muted-foreground">
+                  Tenants use the separate Tenant Portal app with the same account system.
+                </p>
               </CardContent>
             </Card>
-
-            <div className="grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-primary">2</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Properties</div>
-              </div>
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-primary">3</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Tenants</div>
-              </div>
-              <div className="rounded-2xl border bg-card p-3">
-                <div className="text-2xl font-semibold text-primary">12</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Payments</div>
-              </div>
-            </div>
           </div>
         </section>
 
         <section id="features" className="pt-8">
           <div className="mb-6 text-center">
             <h2 className="font-heading text-3xl font-semibold tracking-tight">Built for serious landlords</h2>
-            <p className="text-muted-foreground mt-2">Every tool you actually use day-to-day, polished and ready to demo.</p>
+            <p className="text-muted-foreground mt-2">Every tool you actually use day-to-day, polished and production-ready.</p>
           </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <FeatureCard

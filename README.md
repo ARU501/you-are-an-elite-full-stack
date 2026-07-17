@@ -1,235 +1,67 @@
 # LandlordForge — Landlord Portal
 
-**This branch (`LAND-LOARD`) is the dedicated, standalone Landlord Portal.**
+**This branch (`LAND-LOARD`) is the dedicated, standalone Landlord Portal, running in full production mode.**
 
-LandlordForge Landlord Portal is a production-quality demo of a complete landlord operating system. It includes property management, tenant oversight, rental application review, maintenance request handling, rent collection tracking, financial reports, and a rich in-app messaging center — all running in a seamless, instant-load demo mode with realistic pre-seeded data.
+LandlordForge is a complete landlord operating system: property management, rental application review, tenant oversight, maintenance handling, rent collection, financial reports, and in-app messaging. All data lives in a real **Supabase** (Postgres) backend with row-level security, real email/password accounts, live cross-app sync, and **Stripe**-powered rent collection.
 
-> This is a **landlord-only** experience. The separate `TENANT` branch contains the matching tenant-only portal.
+> The separate `TENANT` branch contains the matching tenant-only portal. **Both apps share one Supabase project** — a tenant paying rent in the Tenant Portal shows up instantly in this app.
 
 ## Stack
 
 - Next.js 15 App Router + TypeScript
+- Supabase: Auth (email/password), Postgres with row-level security, Realtime sync
+- Stripe Payment Intents + webhook settlement (optional; manual-record mode without keys)
 - Tailwind CSS + shadcn-style local UI components
-- Zustand for auth, product state, and persistence
-- LocalStorage + IndexedDB snapshot mirror for offline-first behavior
-- Lucide icons
-- Recharts for Pro reports
-- PWA manifest + `public/sw.js` service worker stub
+- Zustand as the client-side data cache over the Supabase backend
+- Lucide icons, Recharts for Pro reports, PWA manifest
 
-## Demo Access (Instant)
+## Quick Start
 
-This landlord portal auto-loads the full demo experience. 
+Full walkthrough: **[SETUP.md](SETUP.md)**. Short version:
 
-**Quick Start**
-- Visit any protected page (e.g. /dashboard) — you are automatically signed in as the landlord with complete sample data.
-- Or go to [/login/landlord](/login/landlord) and click **Enter Demo Instantly**.
-
-Demo landlord account (if manual login needed):
-- Email: `landlord@demo.com`
-- Password: `demo123`
-
-Everything (properties, tenants, messages, maintenance, payments, applications) is fully interactive and persists in your browser.
-
-## Key MVP Features
-
-- Public landing page with landlord and tenant entry paths
-- Separate `/login/landlord` and `/login/tenant` demo logins
-- Role-aware landlord and tenant dashboards
-- Persistent in-app messaging center with unread badges
-- Tenant rent payment portal with autopay preferences and payment history
-- Landlord properties, tenants, payment ops, expenses, maintenance board, and reports
-- Free vs Pro gating with upgrade dialog and floating upsell
-- Offline-first persistence with PWA setup
-
-## Project Root
-
-```text
-C:\Users\SeanA\Documents\Codex\2026-04-24\you-are-an-elite-full-stack
-```
-
-## Create a Fresh Next.js App Yourself
+1. Create a free Supabase project and run `supabase/migrations/001_landlordforge_schema.sql` in its SQL Editor.
+2. `cp .env.example .env.local` and fill in `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`.
+3. Install and run:
 
 ```bash
-npm create next-app@latest landlordforge -- --ts --tailwind --app
-cd landlordforge
+pnpm install
+pnpm dev
 ```
 
-Then copy this project structure into that folder.
+4. Open `http://localhost:3000`, create your landlord account at `/signup`, and add your first property.
 
-## Run Locally
+Until the env vars are present, protected pages show a setup notice instead of the app.
 
-Install dependencies:
+## How the two portals connect
+
+1. Landlord adds a property and sets its status to **Vacant** — it becomes a public listing.
+2. A tenant (TENANT branch app) signs up, browses `/browse`, and applies.
+3. Landlord approves under **Applications** → one atomic database function creates the tenancy, links the tenant's account, marks the property occupied, generates the first rent charge, and sends a welcome message.
+4. Rent charges auto-generate monthly; late charges roll to overdue with a flat $50 fee after a 3-day grace period.
+5. Messaging, maintenance requests, payments, and applications sync live between both apps via Supabase Realtime.
+
+Tenants can also be linked without an application: create a tenancy whose `tenant_email` matches the email the tenant later signs up with.
+
+## Payments
+
+- `POST /api/payments/create-intent` — authenticated; validates the rent charge server-side (RLS-scoped) and computes the authoritative total. With `STRIPE_SECRET_KEY` set it creates a real Payment Intent; the Tenant Portal collects the card/bank details in Stripe's Payment Element.
+- `POST /api/stripe/webhook` — signature-verified, idempotent by `stripe_event_id`; settles the payment in Postgres via the service-role client and notifies the landlord thread.
+- Without Stripe keys: **manual mode** — payments are recorded (check/Zelle/cash) with receipts, no money moves.
+
+## Security
+
+- Every table has row-level security: landlords only see their own portfolio; tenants only their own tenancy, payments, requests, and messages.
+- Payment totals are computed server-side; webhook mutations are idempotent and signature-verified.
+- No card or bank numbers ever touch this app — collection is Stripe-hosted.
+- The `SUPABASE_SERVICE_ROLE_KEY` is used only in server routes (webhook), never shipped to the browser.
+
+## Free vs Pro
+
+Free landlord accounts include 2 properties and 10 sent messages; the upgrade dialog flips the account tier (`profiles.tier`) — wire it to Stripe Checkout when you want paid upgrades.
+
+## Build
 
 ```bash
-npm install
+pnpm build
+pnpm start
 ```
-
-Start the dev server:
-
-```bash
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-If your local shell has a flaky Node PATH in this Codex desktop environment, use:
-
-```powershell
-powershell -ExecutionPolicy Bypass -File .\run-dev.ps1
-```
-
-## Build for Production
-
-```bash
-npm run build
-npm run start
-```
-
-## Optional Stripe Environment Variables
-
-Copy [.env.example](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/.env.example) to `.env.local` and set values when you want the API contract routes to talk to Stripe:
-
-```bash
-STRIPE_SECRET_KEY=sk_test_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-```
-
-Without those keys, the payment portal stays in local demo mode and marks payments paid inside Zustand/localStorage only.
-
-## Payment Processing Portal
-
-Frontend components:
-
-- [components/app/tenant-payments.tsx](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/components/app/tenant-payments.tsx)
-- [components/app/landlord-dashboard.tsx](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/components/app/landlord-dashboard.tsx)
-- [lib/payment-processing.ts](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/lib/payment-processing.ts)
-- [lib/stripe.ts](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/lib/stripe.ts)
-
-Backend routes:
-
-- `POST /api/payments/create-intent`
-- `POST /api/stripe/webhook`
-
-### Production Schema
-
-The exact starter schema is in [docs/payment-processing-schema.sql](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/docs/payment-processing-schema.sql):
-
-```sql
-create type payment_status as enum ('due', 'overdue', 'pending', 'paid', 'failed');
-create type payment_method_type as enum ('ach', 'card');
-
-create table tenant_payment_profiles (
-  id uuid primary key default gen_random_uuid(),
-  tenant_id uuid not null references tenants(id),
-  stripe_customer_id text not null unique,
-  autopay_enabled boolean not null default false,
-  autopay_method payment_method_type,
-  saved_payment_label text,
-  notification_channels text[] not null default array['email'],
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table rent_payments (
-  id uuid primary key default gen_random_uuid(),
-  property_id uuid not null references properties(id),
-  tenant_id uuid not null references tenants(id),
-  label text not null,
-  base_amount_cents integer not null,
-  late_fee_cents integer not null default 0,
-  paid_amount_cents integer,
-  due_date date not null,
-  status payment_status not null default 'due',
-  payment_method payment_method_type,
-  stripe_payment_intent_id text unique,
-  receipt_number text unique,
-  failure_reason text,
-  paid_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
-
-create table payment_events (
-  id uuid primary key default gen_random_uuid(),
-  rent_payment_id uuid references rent_payments(id),
-  stripe_event_id text unique,
-  event_type text not null,
-  payload jsonb not null,
-  created_at timestamptz not null default now()
-);
-```
-
-Late fees are currently modeled as a flat `$50` fee after a `3` day grace period inside [lib/payment-processing.ts](C:/Users/SeanA/Documents/Codex/2026-04-24/you-are-an-elite-full-stack/lib/payment-processing.ts). In production, store this per property or lease and compute totals server-side.
-
-### API Contracts
-
-`POST /api/payments/create-intent`
-
-- Creates a Stripe PaymentIntent when `STRIPE_SECRET_KEY` exists
-- Falls back to local demo mode otherwise
-- Accepts `paymentId`, `tenantId`, `amountCents`, `method`, and `autopay`
-
-`POST /api/stripe/webhook`
-
-- Reads the raw request body
-- Verifies `stripe-signature` when `STRIPE_WEBHOOK_SECRET` exists
-- Handles `payment_intent.succeeded`, `payment_intent.processing`, `payment_intent.payment_failed`, and refund/cancel paths as contract responses
-
-### Security Notes
-
-- Do not collect or store bank account numbers or card numbers in LandlordForge
-- Use Stripe-hosted flows, Stripe Elements, or Financial Connections for real ACH/card collection
-- Always calculate payment totals server-side from trusted lease and payment records
-- Verify Stripe webhook signatures before mutating payment records
-- Treat webhook handlers as idempotent by storing `stripe_event_id`
-- Keep Stripe secret keys server-only; only publishable keys belong in the browser
-- Send email or SMS notifications after confirmed backend processor events, not from browser-only local state
-
-## GitHub
-
-From the project root:
-
-```bash
-git init
-git add .
-git commit -m "LandlordForge payment processing portal"
-git branch -M main
-git remote add origin https://github.com/YOUR-USERNAME/landlordforge.git
-git push -u origin main
-```
-
-## Deploy to Vercel
-
-1. Push this folder to GitHub
-2. Go to [https://vercel.com/new](https://vercel.com/new)
-3. Import the GitHub repo
-4. Keep the detected framework as `Next.js`
-5. Use the default project root
-6. Deploy
-
-Recommended settings:
-
-- Node.js version: `22.x`
-- Install command: `npm install`
-- Build command: `npm run build`
-
-## Share the Demo
-
-Send people the deployed URL and say:
-
-```text
-Here is the LandlordForge demo: https://your-url.vercel.app
-Use landlord@demo.com / demo123 or tenant@demo.com / demo123
-```
-
-## Scripts
-
-- `npm run dev` - start development
-- `npm run build` - production build
-- `npm run start` - run the production server
-- `npm run lint` - Next.js lint command

@@ -5,6 +5,7 @@ import { LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { AppShell } from "@/components/app/app-shell";
+import { SetupNotice } from "@/components/app/setup-notice";
 import { Role } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
 
@@ -24,24 +25,27 @@ function getPageCopy(copy: PageCopy, role: Role) {
 export function ProtectedPage({ roles, title, description, children }: ProtectedPageProps) {
   const router = useRouter();
   const hasHydrated = useAppStore((state) => state.hasHydrated);
+  const supabaseConfigured = useAppStore((state) => state.supabaseConfigured);
   const currentUser = useAppStore((state) => state.currentUser);
-  const enterDemo = useAppStore((state) => state.enterDemo);
 
   useEffect(() => {
-    if (!hasHydrated) {
+    if (!hasHydrated || !supabaseConfigured) {
       return;
     }
 
     if (!currentUser) {
-      // Seamless demo: instantly enter as the landlord with full pre-loaded data
-      enterDemo();
+      router.replace("/login");
       return;
     }
 
     if (!roles.includes(currentUser.role)) {
       router.replace("/dashboard");
     }
-  }, [currentUser, hasHydrated, roles, router, enterDemo]);
+  }, [currentUser, hasHydrated, supabaseConfigured, roles, router]);
+
+  if (hasHydrated && !supabaseConfigured) {
+    return <SetupNotice />;
+  }
 
   if (!hasHydrated || !currentUser || !roles.includes(currentUser.role)) {
     return (
@@ -54,8 +58,8 @@ export function ProtectedPage({ roles, title, description, children }: Protected
     );
   }
 
-  const displayTitle = currentUser ? getPageCopy(title, currentUser.role) : "Preparing workspace";
-  const displayDescription = currentUser ? getPageCopy(description, currentUser.role) : "Loading your landlord portal...";
+  const displayTitle = getPageCopy(title, currentUser.role);
+  const displayDescription = getPageCopy(description, currentUser.role);
 
   return (
     <AppShell title={displayTitle} description={displayDescription}>
