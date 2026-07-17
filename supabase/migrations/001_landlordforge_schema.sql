@@ -357,10 +357,12 @@ begin
   )
   on conflict (id) do nothing;
 
-  update public.tenancies
-  set tenant_profile_id = new.id
-  where tenant_profile_id is null
-    and lower(tenant_email) = lower(coalesce(new.email, ''));
+  if coalesce(new.raw_user_meta_data->>'role', 'tenant') = 'tenant' then
+    update public.tenancies
+    set tenant_profile_id = new.id
+    where tenant_profile_id is null
+      and lower(tenant_email) = lower(coalesce(new.email, ''));
+  end if;
 
   return new;
 end;
@@ -405,9 +407,10 @@ set search_path = public
 as $$
 declare
   my_email text;
+  my_role text;
 begin
-  select email into my_email from public.profiles where id = auth.uid();
-  if my_email is null or my_email = '' then
+  select email, role into my_email, my_role from public.profiles where id = auth.uid();
+  if my_email is null or my_email = '' or my_role <> 'tenant' then
     return;
   end if;
 
