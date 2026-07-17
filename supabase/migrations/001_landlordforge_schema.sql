@@ -263,25 +263,35 @@ create policy "payments_landlord_all" on public.rent_payments
   for all using (auth.uid() = landlord_id) with check (auth.uid() = landlord_id);
 create policy "payments_tenant_select" on public.rent_payments
   for select using (public.is_my_tenancy(tenancy_id));
+-- Tenants may update their own rent rows (start a payment, record a manual
+-- settlement), but the guard_rent_payment_write trigger below pins the
+-- authoritative columns (amount, landlord, tenancy) so a tenant cannot forge
+-- a paid status, a lower amount, or reassign the row to another landlord.
 create policy "payments_tenant_update" on public.rent_payments
-  for update using (public.is_my_tenancy(tenancy_id));
+  for update using (public.is_my_tenancy(tenancy_id))
+  with check (public.is_my_tenancy(tenancy_id));
 
 -- PAYMENT PROFILES
 create policy "payment_profiles_landlord_select" on public.payment_profiles
   for select using (auth.uid() = landlord_id);
 create policy "payment_profiles_tenant_all" on public.payment_profiles
-  for all using (public.is_my_tenancy(tenancy_id)) with check (public.is_my_tenancy(tenancy_id));
+  for all using (public.is_my_tenancy(tenancy_id))
+  with check (
+    public.is_my_tenancy(tenancy_id)
+    and landlord_id = (select landlord_id from public.tenancies where id = tenancy_id)
+  );
 
 -- PAYMENT EVENTS
 create policy "payment_events_landlord_select" on public.payment_events
   for select using (auth.uid() = landlord_id);
 create policy "payment_events_insert_participant" on public.payment_events
   for insert with check (
-    auth.uid() = landlord_id
+    (auth.uid() = landlord_id and landlord_id is not null)
     or exists (
       select 1 from public.rent_payments
       where rent_payments.id = payment_events.rent_payment_id
         and public.is_my_tenancy(rent_payments.tenancy_id)
+        and rent_payments.landlord_id = payment_events.landlord_id
     )
   );
 create policy "payment_events_tenant_select" on public.payment_events
@@ -308,13 +318,24 @@ create policy "expenses_landlord_all" on public.expenses
 -- MESSAGES
 create policy "messages_select_participant" on public.messages
   for select using (auth.uid() = sender_id or auth.uid() = recipient_id);
+-- Sender must be the caller; landlord_id and recipient_id are pinned to the
+-- real participants of the tenancy so a tenant cannot inject a message into an
+-- unrelated user's inbox or spoof a different landlord.
 create policy "messages_insert_participant" on public.messages
   for insert with check (
     auth.uid() = sender_id
+    and landlord_id = (select landlord_id from public.tenancies where id = tenancy_id)
+    and recipient_id in (
+      (select landlord_id from public.tenancies where id = tenancy_id),
+      (select tenant_profile_id from public.tenancies where id = tenancy_id)
+    )
     and (auth.uid() = landlord_id or public.is_my_tenancy(tenancy_id))
   );
+-- Recipients may only flip the read flag; the guard_message_write trigger
+-- rejects edits to content or routing columns.
 create policy "messages_update_recipient" on public.messages
-  for update using (auth.uid() = recipient_id);
+  for update using (auth.uid() = recipient_id)
+  with check (auth.uid() = recipient_id);
 
 -- ACTIVITIES
 create policy "activities_landlord_all" on public.activities
@@ -322,7 +343,11 @@ create policy "activities_landlord_all" on public.activities
 create policy "activities_tenant_select" on public.activities
   for select using (tenancy_id is not null and public.is_my_tenancy(tenancy_id));
 create policy "activities_tenant_insert" on public.activities
-  for insert with check (tenancy_id is not null and public.is_my_tenancy(tenancy_id));
+  for insert with check (
+    tenancy_id is not null
+    and public.is_my_tenancy(tenancy_id)
+    and landlord_id = (select landlord_id from public.tenancies where id = tenancy_id)
+  );
 
 -- RENTAL APPLICATIONS
 create policy "applications_landlord_select" on public.rental_applications
@@ -357,7 +382,12 @@ begin
   )
   on conflict (id) do nothing;
 
-  if coalesce(new.raw_user_meta_data->>'role', 'tenant') = 'tenant' then
+  -- Only auto-link a tenancy once the email is confirmed, so an attacker
+  -- cannot claim someone else's tenancy by signing up with their email before
+  -- they do. When "Confirm email" is disabled, email_confirmed_at is set at
+  -- signup and linking still happens immediately.
+  if coalesce(new.raw_user_meta_data->>'role', 'tenant') = 'tenant'
+     and new.email_confirmed_at is not null then
     update public.tenancies
     set tenant_profile_id = new.id
     where tenant_profile_id is null
@@ -392,6 +422,112 @@ create trigger update_payment_profiles_updated_at before update on public.paymen
   for each row execute function public.update_updated_at_column();
 create trigger update_requests_updated_at before update on public.maintenance_requests
   for each row execute function public.update_updated_at_column();
+
+-- =====================================================
+-- INTEGRITY GUARDS
+-- These triggers enforce column-level rules that RLS policies alone cannot
+-- express (RLS gates whole rows, not which columns changed).
+-- =====================================================
+
+-- Flat late fee once a rent charge is more than the grace window past due.
+-- Mirrors LATE_FEE_GRACE_DAYS (3) and DEFAULT_LATE_FEE_CENTS (5000) in
+-- lib/payment-processing.ts, and computeTotalDueCents in the create-intent route.
+create or replace function public.project_late_fee_cents(base_cents integer, due date)
+returns integer
+language sql
+stable
+as $$
+  select case when current_date > (due + 3) then 5000 else 0 end;
+$$;
+
+-- Constrain what a tenant can write to their own rent_payments rows. The
+-- landlord (auth.uid() = landlord_id) and the service-role webhook
+-- (auth.uid() is null) are trusted and pass through untouched.
+create or replace function public.guard_rent_payment_write()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if auth.uid() is null or auth.uid() = old.landlord_id then
+    return new; -- service role or the landlord: full control
+  end if;
+
+  -- Tenant path: pin every authoritative column to its prior value.
+  new.landlord_id := old.landlord_id;
+  new.tenancy_id := old.tenancy_id;
+  new.property_id := old.property_id;
+  new.base_amount_cents := old.base_amount_cents;
+  new.label := old.label;
+  new.due_date := old.due_date;
+  new.created_at := old.created_at;
+
+  if old.status = 'paid' then
+    raise exception 'This payment is already settled and cannot be changed.';
+  end if;
+
+  -- Late fee and paid amount are computed server-side, never trusted from the client.
+  new.late_fee_cents := public.project_late_fee_cents(old.base_amount_cents, old.due_date);
+
+  if new.status = 'paid' then
+    new.paid_amount_cents := old.base_amount_cents + new.late_fee_cents;
+    new.paid_at := coalesce(new.paid_at, now());
+    if new.receipt_number is null then
+      new.receipt_number := 'LF-' || to_char(now(), 'YYYYMMDD') || '-' || upper(substr(md5(random()::text), 1, 4));
+    end if;
+  elsif new.status in ('due', 'overdue', 'pending', 'failed') then
+    new.paid_amount_cents := null;
+    new.paid_at := null;
+  else
+    raise exception 'Invalid rent payment status: %', new.status;
+  end if;
+
+  return new;
+end;
+$$;
+
+create trigger guard_rent_payment_write before update on public.rent_payments
+  for each row execute function public.guard_rent_payment_write();
+
+-- Messages are immutable except for the read flag.
+create or replace function public.guard_message_write()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.content is distinct from old.content
+     or new.sender_id is distinct from old.sender_id
+     or new.recipient_id is distinct from old.recipient_id
+     or new.tenancy_id is distinct from old.tenancy_id
+     or new.landlord_id is distinct from old.landlord_id then
+    raise exception 'Only the read flag may be updated on a message.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger guard_message_write before update on public.messages
+  for each row execute function public.guard_message_write();
+
+-- A profile's id and role are immutable after creation (tier may change).
+create or replace function public.guard_profile_write()
+returns trigger
+language plpgsql
+as $$
+begin
+  if new.id is distinct from old.id then
+    raise exception 'Profile id cannot be changed.';
+  end if;
+  if new.role is distinct from old.role then
+    raise exception 'Account role cannot be changed.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger guard_profile_write before update on public.profiles
+  for each row execute function public.guard_profile_write();
 
 -- =====================================================
 -- RPCS (called by the apps)

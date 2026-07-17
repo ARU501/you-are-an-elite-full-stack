@@ -204,7 +204,11 @@ export function mapPayment(row: RentPaymentRow): PaymentItem {
     label: row.label,
     amount: row.base_amount_cents / 100,
     baseAmountCents: row.base_amount_cents,
-    lateFeeCents: row.late_fee_cents,
+    // 0 means "no fee assessed yet" — leave it undefined so the client's
+    // calculateLateFeeCents projects the grace-window fee, matching the amount
+    // the create-intent route computes and charges. A stored positive fee is
+    // authoritative and passes through.
+    lateFeeCents: row.late_fee_cents > 0 ? row.late_fee_cents : undefined,
     paidAmountCents: row.paid_amount_cents ?? undefined,
     dueDate: row.due_date,
     status: row.status,
