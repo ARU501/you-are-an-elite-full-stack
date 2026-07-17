@@ -16,7 +16,7 @@ This creates every table (profiles, properties, tenancies, rent payments, paymen
 By default Supabase requires new users to confirm their email before they can sign in.
 
 - For instant signups while testing: **Authentication → Sign In / Up → Email** and turn **off** "Confirm email".
-- For production: leave it on — users get a confirmation email and then sign in.
+- **For production: leave it ON.** Tenancies auto-link to a tenant account by matching the lease email, and that link only fires once the email is confirmed (enforced in the `handle_new_user` trigger). With confirmation off, someone could sign up with a known tenant's email before they do and claim the tenancy — so confirmation must stay on outside local testing.
 
 ## 3. Add the keys to the app
 

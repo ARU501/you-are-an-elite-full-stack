@@ -305,12 +305,16 @@ export function LandlordProperties() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="property-note">Notes</Label>
+              <Label htmlFor="property-note">Description</Label>
               <Textarea
                 id="property-note"
                 value={propertyDraft.note}
                 onChange={(event) => setPropertyDraft((current) => ({ ...current, note: event.target.value }))}
               />
+              <p className="text-xs text-muted-foreground">
+                Shown to prospective tenants as the public listing description when this unit is marked vacant. Keep
+                private reminders out of this field.
+              </p>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setPropertyDialogOpen(false)}>
