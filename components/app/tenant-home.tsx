@@ -11,6 +11,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { JoinPropertyCard } from "@/components/app/join-property-card";
 import { formatCurrency, formatLongDate, formatRelativeTime } from "@/lib/formatters";
 import { getConversationMessages, getCurrentDuePayment, getCurrentProperty, getCurrentTenant, getTenantRequests } from "@/lib/role-data";
 import { MaintenanceRequestDraft, Priority } from "@/lib/types";
@@ -38,7 +39,22 @@ export function TenantHome() {
   const latestLandlordMessage = [...conversation].reverse().find((message) => message.from !== currentUser?.id);
 
   if (!tenant || !property) {
-    return null;
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <JoinPropertyCard />
+        <Card className="border-border/70 bg-background/75">
+          <CardContent className="space-y-3 p-6 text-center">
+            <p className="font-medium">No home connected yet</p>
+            <p className="text-sm text-muted-foreground">
+              Enter the invite code your landlord gave you above, or browse available homes and apply.
+            </p>
+            <Button asChild variant="outline">
+              <Link href="/browse">Browse available homes</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   async function handleRequestSubmit(event: React.FormEvent<HTMLFormElement>) {

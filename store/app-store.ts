@@ -80,6 +80,8 @@ type AppStore = PersistedAppData & {
   fetchListings: () => Promise<ActionResult>;
   submitApplication: (draft: ApplicationDraft) => Promise<ActionResult>;
   decideApplication: (applicationId: string, decision: "approved" | "declined") => Promise<ActionResult>;
+  generatePropertyInviteCode: (propertyId: string) => Promise<ActionResult>;
+  joinPropertyWithCode: (code: string) => Promise<ActionResult>;
 };
 
 function emptyData(): PersistedAppData & { applications: ApplicationItem[]; listings: ListingItem[] } {
@@ -1117,6 +1119,51 @@ export const useAppStore = create<AppStore>()((set, get) => {
         ),
       }));
       return { ok: true, message: "Application declined." };
+    },
+
+    generatePropertyInviteCode: async (propertyId) => {
+      const supabase = getSupabase();
+      const state = get();
+      if (!supabase || !state.currentUser || state.currentUser.role !== "landlord") {
+        return failure("Only landlords can create invite codes.");
+      }
+
+      const { data, error } = await supabase.rpc("generate_property_invite_code", { p_property_id: propertyId });
+      if (error) {
+        return failure(error.message);
+      }
+
+      const code = data as string;
+      set((current) => ({
+        properties: current.properties.map((property) =>
+          property.id === propertyId ? { ...property, inviteCode: code } : property,
+        ),
+      }));
+      return { ok: true, message: "Invite code ready to share." };
+    },
+
+    joinPropertyWithCode: async (code) => {
+      const supabase = getSupabase();
+      const state = get();
+      if (!supabase || !state.currentUser) {
+        return failure("Please log in first.");
+      }
+      if (state.currentUser.role !== "tenant") {
+        return failure("Only tenant accounts can join a property with a code.");
+      }
+
+      const cleaned = code.trim();
+      if (!cleaned) {
+        return failure("Enter the code your landlord gave you.");
+      }
+
+      const { error } = await supabase.rpc("join_property_with_code", { p_code: cleaned });
+      if (error) {
+        return failure(error.message);
+      }
+
+      await get().refresh();
+      return { ok: true, message: "You're in! Your lease and first rent charge are ready." };
     },
   };
 });

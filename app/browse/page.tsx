@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ProtectedPage } from "@/components/app/protected-page";
+import { JoinPropertyCard } from "@/components/app/join-property-card";
 import { formatCurrency } from "@/lib/formatters";
 import { ListingItem } from "@/lib/types";
 import { useAppStore } from "@/store/app-store";
@@ -114,6 +115,8 @@ export default function BrowseAndApplyPage() {
             <Link href="/dashboard"><ArrowLeft className="mr-2 h-4 w-4" /> Back to My Home</Link>
           </Button>
         </div>
+
+        <JoinPropertyCard />
 
         {loading ? (
           <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
