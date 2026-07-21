@@ -37,6 +37,7 @@ export interface PropertyItem {
   dueDay: number;
   note: string;
   status: PropertyStatus;
+  inviteCode?: string;
 }
 
 export interface TenantItem {

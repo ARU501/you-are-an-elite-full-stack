@@ -35,6 +35,7 @@ export interface PropertyRow {
   due_day: number;
   note: string;
   status: "occupied" | "attention" | "vacant";
+  invite_code: string | null;
   created_at: string;
 }
 
@@ -180,6 +181,7 @@ export function mapProperty(row: PropertyRow): PropertyItem {
     dueDay: row.due_day,
     note: row.note,
     status: row.status,
+    inviteCode: row.invite_code ?? undefined,
   };
 }
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { MessageSquare, Pencil, Plus, ReceiptText } from "lucide-react";
+import { Check, Copy, KeyRound, MessageSquare, Pencil, Plus, ReceiptText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -47,7 +47,10 @@ export function LandlordProperties() {
   const addProperty = useAppStore((state) => state.addProperty);
   const updateProperty = useAppStore((state) => state.updateProperty);
   const addExpense = useAppStore((state) => state.addExpense);
+  const generatePropertyInviteCode = useAppStore((state) => state.generatePropertyInviteCode);
   const setSelectedConversationTenantId = useAppStore((state) => state.setSelectedConversationTenantId);
+  const [generatingCodeId, setGeneratingCodeId] = useState<string | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const [propertyDialogOpen, setPropertyDialogOpen] = useState(false);
   const [expenseDialogOpen, setExpenseDialogOpen] = useState(false);
@@ -121,6 +124,27 @@ export function LandlordProperties() {
     }
   }
 
+  async function handleGenerateCode(propertyId: string) {
+    setGeneratingCodeId(propertyId);
+    try {
+      const result = await generatePropertyInviteCode(propertyId);
+      result.ok ? toast.success(result.message) : toast.error(result.message);
+    } finally {
+      setGeneratingCodeId(null);
+    }
+  }
+
+  async function handleCopyCode(code: string) {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopiedCode(code);
+      toast.success("Invite code copied.");
+      setTimeout(() => setCopiedCode((current) => (current === code ? null : current)), 2000);
+    } catch {
+      toast.error("Could not copy. Long-press or select the code to copy it manually.");
+    }
+  }
+
   return (
     <>
       <div className="space-y-4">
@@ -179,6 +203,49 @@ export function LandlordProperties() {
                       {recentExpense ? `Latest expense: ${recentExpense.title} on ${formatLongDate(recentExpense.date)}` : "No recent expense logged."}
                     </p>
                   </div>
+
+                  {property.status === "vacant" ? (
+                    <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 dark:border-emerald-900 dark:bg-emerald-950/20">
+                      <div className="flex items-center gap-2 text-sm font-medium text-emerald-700 dark:text-emerald-300">
+                        <KeyRound className="h-4 w-4" />
+                        Tenant invite code
+                      </div>
+                      {property.inviteCode ? (
+                        <div className="mt-3 flex items-center gap-2">
+                          <code className="flex-1 rounded-lg border border-border/70 bg-background/80 px-3 py-2 font-mono text-lg tracking-widest">
+                            {property.inviteCode}
+                          </code>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => handleCopyCode(property.inviteCode!)}
+                            aria-label="Copy invite code"
+                          >
+                            {copiedCode === property.inviteCode ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Generate a code and share it with your tenant so they can join this unit directly.
+                        </p>
+                      )}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="mt-3 w-full"
+                        onClick={() => handleGenerateCode(property.id)}
+                        disabled={generatingCodeId === property.id}
+                      >
+                        <KeyRound className="h-4 w-4" />
+                        {generatingCodeId === property.id
+                          ? "Generating..."
+                          : property.inviteCode
+                            ? "Generate a new code"
+                            : "Generate invite code"}
+                      </Button>
+                    </div>
+                  ) : null}
 
                   <div className="flex flex-wrap gap-2">
                     <Button variant="outline" onClick={() => openEditProperty(property.id)}>
